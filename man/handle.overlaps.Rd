@@ -9,7 +9,7 @@ handle.overlaps(x)
 handle.overlaps(x)
 }
 \description{
-Some shapes (loops, conjoined loops) get a series of overlapping
+Some shapes (loops, nested loops) get a series of overlapping
 polygons from st_split. Example, minneapolis BTS rails. This cuts out areas
 so all sub polygons are non-overlapping.
 

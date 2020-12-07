@@ -8,6 +8,17 @@ fill.single.gap(edge, nodes, threshold = 50, verbose = T, ...)
 
 fill.single.gap(edge, nodes, threshold = 50, verbose = T, ...)
 }
+\arguments{
+\item{edge}{Single line segment-- 1 row of larger sf \code{lines}}
+
+\item{threshold}{Threshold in crs units. Fill gap if distance between endpoint of
+given edge and another in \code{lines} is < this threshold.}
+
+\item{verbose}{Whether to print alert when a gap is filled.}
+
+\item{lines}{Other lines to check with \code{edge} to possibly fill gap to edge
+to.}
+}
 \description{
 Uses segment endpoints and connects those within threshold distance. Creates
 continuous line that I think is as appropriate as possible.

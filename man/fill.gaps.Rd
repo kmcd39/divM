@@ -2,15 +2,32 @@
 % Please edit documentation in R/polys fcns.R, R/spatial clean fcns.R
 \name{fill.gaps}
 \alias{fill.gaps}
-\title{fill.hwy.gaps}
+\title{fill.gaps}
 \usage{
 fill.gaps(hwy, threshold = 200, return.gap.map = F, ...)
 
 fill.gaps(hwy, threshold = 200, return.gap.map = F, ...)
 }
+\arguments{
+\item{hwy}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+is run on it}
+
+\item{return.gap.map}{Return mapview leaflet to visualize output of fcn}
+
+\item{...}{
+  Arguments passed on to \code{\link[=fill.single.gap]{fill.single.gap}}
+  \describe{
+    \item{\code{edge}}{Single line segment-- 1 row of larger sf \code{lines}}
+    \item{\code{threshold}}{Threshold in crs units. Fill gap if distance between endpoint of
+given edge and another in \code{lines} is < this threshold.}
+    \item{\code{verbose}}{Whether to print alert when a gap is filled.}
+  }}
+}
 \description{
-maps fill.single.gap across output of previous functions. Takes ~denoded~
-lines; expects nhpn hwy data.
+maps fill.single.gap across all subsections of a single hwy. Takes ~denoded~ lines;
+expects nhpn hwy data. The purpose is that if a highway has a short break
+(<threshold) in the middle, this allows the polygon measure to ignore a short break.
+Call with \code{return.gap.map=T} to visualize what it does.
 
 maps fill.single.gap across output of previous functions. Takes ~denoded~
 lines; expects nhpn hwy data.

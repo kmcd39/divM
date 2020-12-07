@@ -8,6 +8,15 @@ Fix.all.hwys(hwy, return.gap.map = F, ...)
 
 Fix.all.hwys(hwy, return.gap.map = F, ...)
 }
+\arguments{
+\item{...}{
+  Arguments passed on to \code{\link[=fill.gaps]{fill.gaps}}
+  \describe{
+    \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+is run on it}
+    \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}
+  }}
+}
 \description{
 Fixes all hwys in place from raw data from subset of raw nhpn data
 
