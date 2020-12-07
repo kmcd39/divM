@@ -14,44 +14,45 @@
 #' @param divs.include.intersecting Include additional divisions that don't have
 #'   above identifier, but which intersect with divs that do.
 #' @param remove.NA.divs Whether or not to remove all divisions with an NA in the identifier column.
+#' @export
 subset.polys.divs <- function(region, div.sf,
-                              div.identifier.column = NULL, 
+                              div.identifier.column = NULL,
                               divs.always.include = NULL, divs.include.intersecting = F,
                               remove.NA.divs = T, ...) {
-  
+
   # trim to region
   div <- st_crop( div.sf
                   ,region )
-  
+
   # End here if no hwy types excluded
   if( is.null(div.identifier.column) ) return(div)
-  
+
   # remove NAs if 'remove.NA.divs'
   if(remove.NA.divs)
     div <- div %>% filter(! is.na(!!rlang::sym(div.identifier.column)) )
-  
+
   # trim to always included types
   if( !is.null(divs.always.include) )
-    divP <- div %>% 
+    divP <- div %>%
       filter(!!rlang::sym(div.identifier.column)
              %in% divs.always.include)
   else divP <- div
-  
+
   # end here if finished
-  if( is.null(divs.include.intersecting) | 
+  if( is.null(divs.include.intersecting) |
       !divs.include.intersecting) return(divP)
-  
+
   # Incl hwys that intersect otherwise ------------
   rt <- div %>%
     filter(! (!!rlang::sym(div.identifier.column) %in% divs.always.include) )
-  
+
   touches.p <- st_filter(rt, divP)
-  
+
   if(nrow(touches.p) == 0)
     out <- divP
   else
     out <- rbind(divP,touches.p)
-  
+
   return(out)
 }
 
@@ -68,39 +69,40 @@ subset.polys.divs <- function(region, div.sf,
 #' international boundary. It also means that if a hwy ends or changes class a
 #' few meters from the cz boundary, it can still count as a division. (Operative
 #' difference in Dallas, TX, for example)
+#'
 polygonal.div <- function(  region, divs
                             , negative.buffer = 100
                             , min.size = 5e5
                             , min.population.count = 1000
                             , min.population.perc = NULL
                             , verbose = T, return.sf = F, ...) {
-  require(lwgeom) 
+  require(lwgeom)
   region.type = unique(region$region.type)
   region.id = unique(region$region.id)
   if(verbose) cat("generating", region.type,
                   "-",region.id, "\n" )
-  
+
   initial.crs = st_crs(divs)
-  
+
   # return w/ 0 if no included divisions overlap
   if( nrow(divs) == 0 )
-    return( abv_out(region) %>% 
+    return( abv_out(region) %>%
               select(region.id, region.name, region.type) %>%
               mutate(n.polys = 0) )
-  
+
   # finally, calculate subdivisions
-  polys <- 
+  polys <-
     st_split(st_buffer(region
                        , -negative.buffer)
              , divs) %>%
     select(contains("region.")) %>%
     rmapshaper::ms_explode() %>%
     mutate(id = 1:nrow(.))
-  
+
   polys <- st_make_valid(polys)
-  
+
   polys <- handle.overlaps(polys)
-  
+
   # filter by size if appropriate
   if( min.size > 0 )
     polys <- polys %>%
@@ -111,56 +113,56 @@ polygonal.div <- function(  region, divs
     filter(area > min.size) %>%
     st_transform(initial.crs) %>%
     mutate(id = 1:nrow(.))
-  
+
   # filter by population if appropriate
-  if( is.numeric(min.population.count) | 
+  if( is.numeric(min.population.count) |
       is.numeric(min.population.perc) )
     polys <- trim.polys.by.pop( polys, region.id, region.type
                                 ,min.population.count, min.population.perc, return.sf)
-  
+
   if(return.sf) return(polys)
-  
-  out <- polys %>% 
+
+  out <- polys %>%
     select(region.id, region.name, region.type) %>%
     mutate(n.polys = max(polys$id)) %>%
     distinct()
-  
+
   return(out)
 }
 
 #' trim.polys.by.pop
-#' 
+#'
 #' Trims polygons by population. Helper fcn called from polygonal.div if min.population has a non-null value.
 #' CT table with population and tract identifiers is hardcoded in; expects 'cts' table in environment.
 trim.polys.by.pop <- function(sub.polys, region.id,
                               region.type = "cz",
                               min.population.count = NULL, min.population.perc = NULL
                               , return.sf) {
-  
+
   # filter cts to area
-  cz.tracts = cts %>% 
-    filter(!!rlang::sym(region.type) == region.id) %>% 
+  cz.tracts = cts %>%
+    filter(!!rlang::sym(region.type) == region.id) %>%
     st_make_valid() %>%
     select(geoid, population) # geoid gisjoin
   #  & get total population for area
   cz.pop = sum(cz.tracts$population)
-  
+
   # buffer 0 pre-validate trick
   sub.polys <- sub.polys %>% st_buffer(0)
   cts <- cts %>% st_buffer(0)
-  
+
   return.class = case_when(return.sf ~ "sf",
                            !return.sf ~ "tibble")
-  
+
   polys = areal::aw_interpolate( sub.polys, tid = id   ### seems there is a bug here....
                                  ,cz.tracts, sid = geoid # gisjoin
                                  ,weight = "total" # tracts are co-terminous w/ czs
                                  ,extensive = c("population")
                                  ,output = return.class )
-  
+
   polys = polys %>%
-    mutate(pop.perc = population / cz.pop) 
-  
+    mutate(pop.perc = population / cz.pop)
+
   # filter by total population and/or percent, based on which arguments are supplied
   if( is.numeric(min.population.count) )
     polys = polys %>%
@@ -168,23 +170,25 @@ trim.polys.by.pop <- function(sub.polys, region.id,
   if( is.numeric(min.population.perc) )
     polys = polys %>%
     filter(pop.perc >= min.population)
-  
+
   # count em up
   polys = polys %>%
     mutate(id = 1:nrow(.))
-  
+
   return(polys)
 }
 
 #' handle.overlaps
 #'
-#' Some shapes (loops, conjoined loops) get a series of overlapping
+#' Some shapes (loops, nested loops) get a series of overlapping
 #' polygons from st_split. Example, minneapolis BTS rails. This cuts out areas
 #' so all sub polygons are non-overlapping.
 handle.overlaps <- function(x) {
   # get polygons formed from overlaps
-  overlaps <- x %>% st_intersection() %>% filter(grepl("POLYGON", st_geometry_type(.$geometry)))
-  
+  overlaps <- x %>%
+    st_intersection() %>%
+    filter(grepl("POLYGON", st_geometry_type(.$geometry)))
+
   overlaps %>% select(-c(n.overlaps, origins))
 }
 
@@ -194,28 +198,34 @@ handle.overlaps <- function(x) {
 #'
 #' Uses segment endpoints and connects those within threshold distance. Creates
 #' continuous line that I think is as appropriate as possible.
-fill.single.gap <- function(edge, nodes, threshold = 50, verbose = T, ...) {
-  
+#' @param edge Single line segment-- 1 row of larger sf \code{lines}
+#' @param lines Other lines to check with \code{edge} to possibly fill gap to edge
+#'   to.
+#' @param threshold Threshold in crs units. Fill gap if distance between endpoint of
+#'   given edge and another in \code{lines} is < this threshold.
+#' @param verbose Whether to print alert when a gap is filled.
+fill.single.gap <- function(edge, nodes, threshold = 200, ...) {
+
   # add meters to threshold
   threshold = units::set_units(threshold, "m")
-  
-  # for each edge, find nearest edge on other node
+
+  # for given edge, find nearest start/endpoint that is not a part of given edge
   eligible.nodes = nodes[!nodes$nodeID %in% edge$nodeID,]
   neasest.to.i.nodes = edge %>%
     st_nearest_feature(eligible.nodes)
-  
+
   # get nearest node(s) on other edges
   nn = eligible.nodes[neasest.to.i.nodes,]$nodeID
-  
+
   # lines to nearest nodes...
   to.nn <- c(st_nearest_points(edge[1,],
                                eligible.nodes[eligible.nodes$nodeID == nn[1],])
              ,st_nearest_points(edge[2,],
                                 eligible.nodes[eligible.nodes$nodeID == nn[2],]))
-  
+
   to.nn <- unique(to.nn) %>% st_sfc(crs = st_crs(edge))
-  
-  edge$nn = nn 
+
+  edge$nn = nn
   edge$to.nn = to.nn
   edge$dist2nn = geod.length(to.nn)
   # filter those below threshold & make geometry the line
@@ -224,85 +234,91 @@ fill.single.gap <- function(edge, nodes, threshold = 50, verbose = T, ...) {
     edge$geometry = NULL
     return(new.seg)
   }
-  #cat("addressed gaps at ", unique(edge$SIGN1), "\n")
-  
+
   new.seg = abv_out(new.seg) %>%
     rename(geometry= to.nn) %>% st_sf()
-  
+
   return(new.seg)
 }
 
-#' fill.hwy.gaps
+#' fill.gaps
 #'
-#' maps fill.single.gap across output of previous functions. Takes ~denoded~
-#' lines; expects nhpn hwy data.
-fill.gaps <- function(hwy, threshold = 200, return.gap.map = F, ...) {
+#' maps fill.single.gap across all subsections of a single hwy. Takes ~denoded~ lines;
+#' expects nhpn hwy data. The purpose is that if a highway has a short break
+#' (<threshold) in the middle, this allows the polygon measure to ignore a short break.
+#' Call with \code{return.gap.map=T} to visualize what it does.
+#' @param hwy a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+#'   is run on it
+#' @param return.gap.map Return mapview leaflet to visualize output of fcn
+#' @inheritDotParams fill.single.gap
+fill.gaps <- function(hwy, return.gap.map = F, ...) {
   hwy.type <- unique(hwy$SIGNT1)
   hwy.id <- unique(hwy$SIGN1)
-  
+
   # subset to non-loops
-  # (loops are very rare but problematic. Found one-- S213 in Boston. Use cat to locate others
+  # (loops are rare but problematic. One example -- S213 in Boston.
   delooped <- hwy[st_startpoint(hwy) != st_endpoint(hwy), ]
   if(nrow(delooped) != nrow(hwy)) cat("Loop found in", hwy.id)
-  
-  # if no more than 1 non-loop segment, return HWYS early
+
+  # if no more than 1 non-loop segment, return early (no gaps to fill)
   if( nrow(delooped) <= 1 ) {
     out <- hwy %>% select(SIGN1, SIGNT1, geometry) %>% mutate(id = 1)
     return(out)
   }
-  
   cat("fixing",hwy.id,"\n")
-  
+
   # to fill gaps, first get endpoints of existing segments
   hwy.n = find.endpoint.nodes(hwy)
-  
+
   fillers = hwy.n %>%
     split(.$edge.id) %>%
     purrr::map(~fill.single.gap(., hwy.n, threshold = threshold), ...)
-  
+
   # return early if no gaps filled
   if( all(map_lgl(fillers, ~(nrow(.) == 0))) )
     return(hwy)
-  
+
   fillers <- do.call("rbind", fillers)
-  
+
   # return map if appropriate
   if( return.gap.map )
     return(mapview(hwy) + mapview(fillers, color = "red"))
-  
+
   # join segments with gap-fillers
-  continuous.intst = st_union(hwy,
+  continuous.hwy = st_union(hwy,
                               fillers) %>%
     st_union() %>%
     st_line_merge() %>%
     st_sf(SIGNT1 = hwy.type
           ,SIGN1 = hwy.id
           ,geometry = .)
-  
-  continuous.intst$id <- 1:nrow(continuous.intst)
-  return(continuous.intst)
+
+  continuous.hwy$id <- 1:nrow(continuous.hwy)
+  return(continuous.hwy)
 }
 
 
 
 #' Fix all hwys
-#' 
+#'
 #' Fixes all hwys in place from raw data from subset of raw nhpn data
-Fix.all.hwys <- function(hwy, return.gap.map = F, ...) {
-  
+#' @inheritDotParams fill.gaps
+#' @export
+Fix.all.hwys <- function(hwy, ...) {
+
   dn.hwy <- hwy %>%
     split(.$SIGN1) %>%
     imap( ~denode.lines(.) )
-  
+
   hwy <- dn.hwy %>%
     imap( ~fill.gaps(., return.gap.map = return.gap.map), ...)
-  
+
   if(return.gap.map)
     return(hwy[map_lgl(hwy, ~("mapview" %in% class(.)))])
-  
-  hwy <- do.call("rbind", hwy) %>% 
+
+  hwy <- do.call("rbind", hwy) %>%
     ez.explode()
-  
+
   return(hwy)
 }
 
@@ -323,6 +339,9 @@ Fix.all.hwys <- function(hwy, return.gap.map = F, ...) {
 #' Polys.wrapper
 #'
 #' Wraps all the functions used to generate the polygonal subdivision measure.
+#' @inheritParams subset.polys.divs
+#' @inheritParams denode.lines
+#' @inheritParams fill.gaps
 #' @param region 1 sf polygon to create sub-division measures for
 #' @param div.sf sf object with division.
 #' @section Passed to Fix.all.hwys fcn
@@ -359,7 +378,7 @@ Fix.all.hwys <- function(hwy, return.gap.map = F, ...) {
 #'   row df for region with columns for region identifiers and number of
 #'   polygons.
 Polys.wrapper <- function( region, div.sf, fill.gaps = F, ...) {
-  
+
   divs <- subset.polys.divs(region, div.sf, ...)
   cat("subsetting done\n")
   if( fill.gaps ) {
@@ -368,7 +387,7 @@ Polys.wrapper <- function( region, div.sf, fill.gaps = F, ...) {
     cat("gaps filled\n")
   }
   out <- polygonal.div(region, divs, ...)
-  
+
   return(out)
 }
 
@@ -401,7 +420,7 @@ mn.watr %>% mapview(zcol="id") + mapview(st_crop(gsw,
 
 st_crs(gsw) = st_crs(cts)
 nhpn <- nhpn %>% conic.transform()
-cts <- cts %>% conic.transform()  
+cts <- cts %>% conic.transform()
 czs <- czs %>% conic.transform()
 
 mn.int = Polys.wrapper(  region = tmpcz
