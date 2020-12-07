@@ -1,6 +1,6 @@
-#' dividedness.measures
+#' divM
 #'
-#' Measures of region dividedness
+#' Measures of region dividedness and functions to examine/generate.
 #'
 #' @import lwgeom sf mapview dplyr purrr
 #' @import geosphere
