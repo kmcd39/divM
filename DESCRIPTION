@@ -2,15 +2,30 @@ Package: dividedness.measures
 Title: What the Package Does (One Line, Title Case)
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Kira",
+           family = "McDonald",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
+           email = "kira.mcd.99@gmail.com.com",
            comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
+Description:
+  Library that bundles measures of dividedness based on physical &amp; administrative 
+   divisions of places and commuting zones with code to generate.
 License: `use_mit_license()`, `use_gpl3_license()` or friends to
     pick a license
+Imports:
+  dplyr,
+  geosphere,
+  leaflet,
+  lwgeom,
+  mapview,
+  nngeo,
+  purrr,
+  rlang,
+  rmapshaper,
+  sf
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
+Depends: 
+    R (>= 2.10)
