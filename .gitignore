@@ -23,7 +23,6 @@
 # produced vignettes
 vignettes/*.html
 vignettes/*.pdf
-*.html
 
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
@@ -40,5 +39,14 @@ vignettes/*.pdf
 .Renviron
 .Rproj.user
 
-# intermediate folder save
+
+# added to template
+
+# other knitted markdowns
+*.html
+
+# intermediate saves in generating measures
 .output/
+
+# any R script prefixed with '.' character
+.*.R
