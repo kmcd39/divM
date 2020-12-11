@@ -13,6 +13,7 @@ Description:
 License: `use_mit_license()`, `use_gpl3_license()` or friends to
     pick a license
 Imports:
+  areal,
   dplyr,
   geosphere,
   leaflet,
@@ -29,3 +30,5 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Depends: 
     R (>= 2.10)
+Suggests: 
+    testthat
