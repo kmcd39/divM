@@ -1,0 +1,241 @@
+---
+title: "Meta Polys in Massachussetts"
+author: "kira"
+date: "10/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## Meta Polys in Sample Areas
+
+This shows prototype generation for "meta polys" for two sample commuting zones in MA, Springfield and Boston czs.
+I compound most of the division type we used, turn them all into cleaned lines, and then get polygonal subdivisions of the commuting zones.
+These sample measures are generated with:
+- Places
+- School Districts
+- County lines
+- Highways (all limited-access)
+- Rails
+
+For water, I had previously used a shapefile that is too-low resolution for generating alongside these.
+I could use the census tigris water, which is ultra high detail, but haven't included yet. (The very high detail also makes it somewhat slow to work with, even over just one cz)
+
+Quick output plots and descriptives are included in code, with interactive maps at the end.
+
+```{r admin.divisions}
+
+suppressMessages(library(sf))
+suppressMessages(library(dplyr))
+suppressMessages(library(lwgeom))
+suppressMessages(library(mapview))
+# load divM
+devtools::load_all()
+
+# set test state
+sample.states = c("25")
+
+# set sample czs (Boston and Springfield)
+tmp.czs <- divDat::czs %>%
+  filter(cz %in% c("20500", "20800")) %>%
+  divM::region.reorg("cz")
+
+# load administrative boundaries -------------------------------------
+counties <- divDat::counties
+sds <- divDat::school.dists
+plc <- divDat::plc
+
+colnames.tolower <- function(x) {
+  colnames(x) <- tolower(colnames(x))
+  return(x)
+}
+admin.geos = list(  "county" = counties
+                  , "place" = plc
+                  , "school.dist" = sds)
+library(purrr)
+admin.geos <- imap( admin.geos
+                   , ~colnames.tolower(.))
+
+# trim divs to sample areas
+sample.admins <- admin.geos %>%
+  imap( ~filter(., statefp %in% sample.states))
+
+# dissolve to boundaries (Turn polygons into linear boundaries)
+sample.admins <- map2( sample.admins
+                       ,names(sample.admins)
+                       , ~divM::dissolve.to.boundaries.w.ID(.x, .y, T)
+                       )
+sample.admins <- do.call("rbind", sample.admins)
+
+# View
+plot(sample.admins['dtype'], lwd = 2, bg = "#444444")
+# (school districts and counties apparently are often co-terminous in MA)
+
+```
+
+Physical/infrastructural divisions are handled differently. They're bigger and retrieved though a database b/c they're not in the divDat package.
+
+```{r phys.divisions}
+
+# (get divs from database)
+source("../../../.auth/.auth.R") # credentials for db not sent to github
+con <- dblinkr::db.connect(db.usr, db.pw)
+dblinkr::tbls.in.schema(con, "divs")
+tmp.czs <- st_transform(tmp.czs, 4326)
+hwys <- dblinkr::query.division(con, tmp.czs, "divs.hwys")
+rails <- dblinkr::query.division(con, tmp.czs, "divs.rails_bts")
+rails.nona = rails %>% filter(!is.na(DIRECTION))
+
+
+# if we want to apply a separate cleaning step to some of the division types that
+# aren't relevant for others (for example filling hwy gaps), we can do that here
+hwys <- divM::Fix.all.hwys(hwys, verbose = F)
+
+# put these into the same format as the administrative boundares.
+phys.divs <- list( "rails" = rails.nona
+                  ,"hwys" = hwys
+                  )
+
+phys.divs <- phys.divs %>%
+  imap( ~divFcns::conic.transform(.) )
+tmp.czs <- divFcns::conic.transform(tmp.czs)
+
+phys.divs <-
+  phys.divs %>%
+  imap( ~pull(., geometry) ) %>%
+    map2( names(phys.divs),
+          ~st_sf(  dtype = .y
+                 , admin = F
+                 , geometry = .x )
+          )
+phys.divs <- do.call('rbind', phys.divs)
+
+# combine into single sf
+all.divs <- rbind(phys.divs,
+                  sample.admins)
+
+# check 
+all.divs %>% tibble() %>% count(dtype) %>% rename(divtype=dtype) %>%
+  knitr::kable()
+
+```
+
+
+Water is handled differently. Rather than being coerced into linear divisions, it is kept as a polygon and then erased from each of the regions. A helper fcn in this package is used to do this, with help from either a SQL database or the tigris library. 
+
+
+
+```{r remove.water}
+
+czs.no.water <-
+  purrr::map_dfr(
+    split(tmp.czs, tmp.czs$region.id),
+    ~divM::db.query.and.cutout.water(con, .,
+                                     trim.unnamed = T, trim.by.area = 2e6))
+
+
+czs.no.water[2,"region.name"] %>% plot(main = "Springfield CZ w water removed")
+
+```
+
+## Generating polygons
+
+That's all the prep. It's a lot!
+Will create a fcn to wrap all the steps to map through all czs
+
+
+```{r generate.polys}
+
+# generate for springfield ------------------------------------------------
+spf <- czs.no.water[2, ]
+
+spf.divs <- st_intersection( all.divs,
+                             st_buffer(spf, 100) )
+spf.divs <- st_collection_extract(spf.divs
+                                  , "LINESTRING")
+
+spf.polys <- polygonal.div(   spf
+                              ,spf.divs
+                              ,return.sf = T
+                              ,min.size = 1e4 # m^2 (very small)
+                              ,min.population.count = 0 # for illustration
+                              )
+
+spf.polys$area <- st_area(spf.polys$geometry)
+plot(spf.polys['id'], main = "Springfield polygons")
+
+# summaries of sizes/interpolated populations for each sub-polygon
+spf.polys[,c("population", "pop.perc", "area")] %>% summary()
+# population
+quantile(spf.polys$population, seq(0,1, .1)  )
+# area
+quantile(spf.polys$area, seq(0,1, .1)  )
+nrow(spf.polys) # total polygonal divisions (given parameters)
+
+
+
+# generate for boston -----------------------------------------------------
+
+boston <- czs.no.water[1, ]
+
+boston.divs <- st_intersection( all.divs,
+                             st_buffer(boston, 100) )
+boston.divs <- st_collection_extract(boston.divs
+                                  , "LINESTRING")
+
+boston.polys <- polygonal.div(   boston
+                              ,boston.divs
+                              ,return.sf = T
+                              ,min.size = 1e4 # m^2 (very small)
+                              ,min.population.count = NULL# 0 # for illustration
+                              )
+## i think the population interpolation for the large city makes it take ~~forever~~~~
+
+boston.polys$area <- st_area(boston.polys$geometry)
+plot(boston.polys['id'], main = "Boston polygons")
+nrow(boston.polys) # total polygonal divisions (given parameters)
+
+# summaries of sizes/interpolated populations for each sub-polygon
+boston.polys[,c("population", "pop.perc", "area")] %>% summary()
+# population
+quantile(boston.polys$population, seq(0,1, .1)  )
+# area
+quantile(boston.polys$area, seq(0,1, .1)  )
+
+
+
+
+
+```
+
+
+## Mapview
+
+```{r mapviews, fig.width=10, fig.height = 12}
+
+spf.divs <- rmapshaper::ms_explode(spf.divs)
+boston.divs <- rmapshaper::ms_explode(boston.divs)
+
+# Springfield mapview!
+spf.polys %>%
+  mutate(population = appHelpers::bin.var_format(population)) %>%
+  mapview(zcol = "population", legend = F) +
+  mapview(spf.divs, zcol="dtype"
+          , color = colorspace::qualitative_hcl(5)
+          , lwd = 3
+          )
+#colorspace::choose_palette()
+
+
+# Boston mapview!
+boston.polys %>%
+  mutate(population = appHelpers::bin.var_format(population)) %>%
+  mapview(zcol = "population", legend = F) +
+  mapview(boston.divs, zcol="dtype"
+          , color = colorspace::qualitative_hcl(5)
+          , lwd = 3
+          )
+```

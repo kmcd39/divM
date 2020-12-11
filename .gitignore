@@ -42,8 +42,9 @@ vignettes/*.pdf
 
 # added to template
 
-# other knitted markdowns
+# other knitted markdowns & materials
 *.html
+*.png
 
 # intermediate saves in generating measures
 .output/
