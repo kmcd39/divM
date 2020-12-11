@@ -8,31 +8,32 @@
   region,
   div.sf,
   div.identifier.column = NULL,
-  divs.always.include = NULL,
-  divs.include.intersecting = F,
+  always.include = NULL,
+  include.intersecting = F,
   remove.NA.divs = T,
   ...
 )
 }
 \arguments{
-\item{region}{1 sf polygon to create sub-division measures for}
+\item{region}{1-row sf polygon to create sub-division measures for}
 
 \item{div.sf}{sf object with division.}
 
-\item{div.identifier.column}{If 'div.sf' has an identifier column to be used
-to filter by, supply here. Must be supplied for subsequent arguments to work.}
+\item{div.identifier.column}{If 'div.sf' has an identifier column to be used to
+filter by, supply here. Must be supplied for subsequent arguments to work.}
 
-\item{divs.always.include}{Always include divisions that have this value in
-the identifier column}
+\item{always.include}{Always include divisions that have this value in the
+identifier column}
 
-\item{divs.include.intersecting}{Include additional divisions that don't have
-above identifier, but which intersect with divs that do.}
+\item{include.intersecting}{Include additional divisions that don't have above
+identifier, but which intersect with divs that do.}
 
-\item{remove.NA.divs}{Whether or not to remove all divisions with an NA in the identifier column.}
+\item{remove.NA.divs}{Whether or not to remove all divisions with an NA in the
+identifier column.}
 }
 \description{
-Preps "division" data, whether water, highways, etc, to generate polygon
-measure for supplied region. If, as with NHPN data, the divisions have an
-"identifier column," the later arguments can be specified to control what
-divisions are kept for polygon creation.
+Preps "division" data, whether water, highways, etc, to generate polygon measure
+for supplied region. If, as with NHPN data, the divisions have an "identifier
+column," the later arguments can be specified to control what divisions are kept
+for polygon creation.
 }

@@ -7,63 +7,40 @@
 Polys.wrapper(region, div.sf, fill.gaps = F, ...)
 }
 \arguments{
-\item{region}{1 sf polygon to create sub-division measures for}
-
-\item{div.sf}{sf object with division.}
-
-\item{fill.gaps}{Whether to check for and may fill small gaps between line
-segments of division. Specify \code{threshold} for maximum gap size to
-be filled in.}
-
-\item{threshold}{maximum gap size to be filled in, in meters, if fill.gaps is
-TRUE.}
-
-\item{div.identifier.column}{If 'div.sf' has an identifier column to be used
-to filter by, supply here. Must be supplied for subsequent arguments to
-work. For NHPN data, this is likely "SIGNT1"}
-
-\item{divs.always.include}{Always include divisions that have this value in
-the identifier column. I.e., Interstate for hwy identifier.}
-
-\item{divs.include.intersecting}{Include additional divisions that don't the
-have above identifier, but which intersect with divs that do.}
-
-\item{remove.NA.divs}{Whether or not to remove all divisions with an NA in
-the identifier column.}
-
-\item{negative.buffer}{Shrink region by this amount only for calculating
-polygons. Useful for handling shpfiles w/ different resolutions, especially
-for regions along an international border. Defaults to 100m.}
-
-\item{min.size}{Minimum (area) size for population, in meters. Defaults to
-5e5, or 1/2 a km^2. Set to NULL to not filter by size.}
-
-\item{min.population.count}{Minimum population that must fall into a polygon
-subdivision for it to be counted. Population is interpolated from census
-tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0
-to filter by percent instead.}
-
-\item{min.population.perc}{Minimum percent \% of population that must fall
-into a polygon subdivision for it to be counted. Population is interpolated
-from census tracts based on \% area overlap of CT within sub-polygon.}
-
-\item{return.sf}{If true, returns an sf object, w/ one row per polygon
-subdivision, that can easily be mapped. If false (default), returns a one
-row df for region with columns for region identifiers and number of
-polygons.}
+\item{...}{
+  Arguments passed on to \code{\link[=subset.polys.divs]{subset.polys.divs}}, \code{\link[=Fix.all.hwys]{Fix.all.hwys}}, \code{\link[=polygonal.div]{polygonal.div}}
+  \describe{
+    \item{\code{region}}{1-row sf polygon to create sub-division measures for}
+    \item{\code{div.sf}}{sf object with division.}
+    \item{\code{div.identifier.column}}{If 'div.sf' has an identifier column to be used to
+filter by, supply here. Must be supplied for subsequent arguments to work.}
+    \item{\code{always.include}}{Always include divisions that have this value in the
+identifier column}
+    \item{\code{include.intersecting}}{Include additional divisions that don't have above
+identifier, but which intersect with divs that do.}
+    \item{\code{remove.NA.divs}}{Whether or not to remove all divisions with an NA in the
+identifier column.}
+    \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+is run on it}
+    \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}
+    \item{\code{negative.buffer}}{Shrink region by this amount only for calculating polygons.
+Useful for handling shpfiles w/ different resolutions, especially for regions
+along an international border. Defaults to 100m.}
+    \item{\code{min.size}}{Minimum (area) size for population, in meters. Defaults to 5e5, or
+1/2 a km^2. Set to NULL to not filter by size.}
+    \item{\code{min.population.count}}{Minimum population that must fall into a polygon
+subdivision for it to be counted. Population is interpolated from census tracts
+based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
+the filter.}
+    \item{\code{min.population.perc}}{Minimum percent \% of population that must fall into a
+polygon subdivision for it to be counted. Population is interpolated from census
+tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not
+apply the filter.}
+    \item{\code{return.sf}}{If true, returns an sf object, w/ one row per polygon
+subdivision, that can easily be mapped. If false (default), returns a one row df
+for region with columns for region identifiers and number of polygons.}
+  }}
 }
 \description{
 Wraps all the functions used to generate the polygonal subdivision measure.
 }
-\section{Passed to Fix.all.hwys fcn}{
-NA
-}
-
-\section{Passed to subsetting fcn subset.polys.divs}{
-NA
-}
-
-\section{Passed to polygonal.div}{
-NA
-}
-

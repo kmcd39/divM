@@ -9,16 +9,22 @@ Fix.all.hwys(hwy, return.gap.map = F, ...)
 Fix.all.hwys(hwy, return.gap.map = F, ...)
 }
 \arguments{
-\item{...}{
-  Arguments passed on to \code{\link[=fill.gaps]{fill.gaps}}
-  \describe{
-    \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+\item{hwy}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
 is run on it}
-    \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}
+
+\item{return.gap.map}{Return mapview leaflet to visualize output of fcn}
+
+\item{...}{
+  Arguments passed on to \code{\link[=fill.single.gap]{fill.single.gap}}
+  \describe{
+    \item{\code{threshold}}{Threshold in crs units. Fill gap if distance between endpoint of
+given edge and another in \code{lines} is < this threshold.}
+    \item{\code{verbose}}{Whether to print alert when a gap is filled.}
   }}
 }
 \description{
-Fixes all hwys in place from raw data from subset of raw nhpn data
+Fixes all hwys in place from raw data from subset of raw nhpn data. Note these
+functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
 
 Fixes all hwys in place from raw data from subset of raw nhpn data. Applies
 \code{denode.lines} then \code{fill.gaps}; returns exploded clean NHPN hwy data.

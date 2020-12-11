@@ -17,7 +17,6 @@ is run on it}
 \item{...}{
   Arguments passed on to \code{\link[=fill.single.gap]{fill.single.gap}}
   \describe{
-    \item{\code{edge}}{Single line segment-- 1 row of larger sf \code{lines}}
     \item{\code{threshold}}{Threshold in crs units. Fill gap if distance between endpoint of
 given edge and another in \code{lines} is < this threshold.}
     \item{\code{verbose}}{Whether to print alert when a gap is filled.}

@@ -9,22 +9,43 @@ polygonal.div(
   divs,
   negative.buffer = 100,
   min.size = 5e+05,
-  min.population.count = 1000,
+  min.population.count = NULL,
   min.population.perc = NULL,
-  verbose = T,
+  verbose = F,
   return.sf = F,
   ...
 )
 }
+\arguments{
+\item{negative.buffer}{Shrink region by this amount only for calculating polygons.
+Useful for handling shpfiles w/ different resolutions, especially for regions
+along an international border. Defaults to 100m.}
+
+\item{min.size}{Minimum (area) size for population, in meters. Defaults to 5e5, or
+1/2 a km^2. Set to NULL to not filter by size.}
+
+\item{min.population.count}{Minimum population that must fall into a polygon
+subdivision for it to be counted. Population is interpolated from census tracts
+based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
+the filter.}
+
+\item{min.population.perc}{Minimum percent \% of population that must fall into a
+polygon subdivision for it to be counted. Population is interpolated from census
+tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not
+apply the filter.}
+
+\item{return.sf}{If true, returns an sf object, w/ one row per polygon
+subdivision, that can easily be mapped. If false (default), returns a one row df
+for region with columns for region identifiers and number of polygons.}
+}
 \description{
-Given a boundary and corresponding divisions, within boundary, filters by
-div.type (currently hardcoded to SIGNT1 column), then finds number of
-sub-polygons in region. Returns a dataframe with region identifiers and
-number of polygons. Filter all subpolygons w/ area between 50,000 m^2 (these
-comprise highway interchanges for example.) Also applies "negative buffer" --
-i.e., shrinks the area to find polygons. This handles issues where hwy
-resolution is slightly different from that of CZs or ends slightly earlier at
-international boundary. It also means that if a hwy ends or changes class a
-few meters from the cz boundary, it can still count as a division. (Operative
-difference in Dallas, TX, for example)
+Given a boundary and corresponding divisions, within boundary, filters by div.type
+(currently hardcoded to SIGNT1 column), then finds number of sub-polygons in
+region. Returns a dataframe with region identifiers and number of polygons. Filter
+all subpolygons w/ area between 50,000 m^2 (these comprise highway interchanges
+for example.) Also applies "negative buffer" -- i.e., shrinks the area to find
+polygons. This handles issues where hwy resolution is slightly different from that
+of CZs or ends slightly earlier at international boundary. It also means that if a
+hwy ends or changes class a few meters from the cz boundary, it can still count as
+a division. (Operative difference in Dallas, TX, for example)
 }

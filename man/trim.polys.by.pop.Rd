@@ -10,10 +10,26 @@ trim.polys.by.pop(
   region.type = "cz",
   min.population.count = NULL,
   min.population.perc = NULL,
-  return.sf
+  return.sf = F
 )
 }
+\arguments{
+\item{min.population.count}{Minimum population that must fall into a polygon
+subdivision for it to be counted. Population is interpolated from census tracts
+based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
+the filter.}
+
+\item{min.population.perc}{Minimum percent \% of population that must fall into a
+polygon subdivision for it to be counted. Population is interpolated from census
+tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not
+apply the filter.}
+
+\item{return.sf}{If true, returns an sf object, w/ one row per polygon
+subdivision, that can easily be mapped. If false (default), returns a one row df
+for region with columns for region identifiers and number of polygons.}
+}
 \description{
-Trims polygons by population. Helper fcn called from polygonal.div if min.population has a non-null value.
-CT table with population and tract identifiers is hardcoded in; expects 'cts' table in environment.
+Trims polygons by population. Helper fcn called from polygonal.div if
+min.population has a non-null value. Uses helpers bundled in package (and depening
+on divDat package) to construct tract populations.
 }
