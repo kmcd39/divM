@@ -63,63 +63,56 @@ count.geo <- function(x) {
 }
 
 
-# open street map query ---------------------------------------------------
 
-#' osm.query
+#' region.reorg
 #'
-#' Extracts bbox from supplied base sf then formats for osm api and extracts
-#' requested features.
-#' @param basesf sf object to query osm over bbox of
-#' @param features osm features to request. See \code{?add_osm_feature} or
-#' https://wiki.openstreetmap.org/wiki/Map_Features
-#' @examples phr <- osm.query(divDat::czs[1,], "railway")
+#' Turns columns with i.e., cz & cz_name to region.id/region.type format that is
+#' expected in a variety of places in code that I've been writing.
+#' @param df table to rename
+#' @param region.type A column in df containing region identifiers, with column
+#'   itself indicating level or type of region.
+#' @export region.reorg
+region.reorg <- function(df, region.type) {
+
+  # rename region.ids
+  out <- df %>% rename("region.id" = !!rlang::sym(region.type))
+
+  # if name column is found rename it to "region.name"
+  if(paste0(region.type, "_name") %in% colnames(df))
+    out <- out %>% rename("region.name" = paste0(region.type, "_name"))
+
+  # add region.type column
+  out$region.type <- region.type
+
+  # ensure geometry column is last (if it exists)
+  if("geometry" %in% colnames(df))
+    out <- out %>% select(-geometry, geometry)
+
+  return(out)
+}
+
+
+
+#' attach.tract.geometry
+#'
+#' Attaches tract geometries and xwalk info to ct.pops. The reason for this function is to avoid
+#' bundling geometries with this package, as they take up a lot of space.
 #' @export
-osm.query <- function(basesf, features) {
-  require(sf)
-  require(osmdata)
-  bboxstr <-
-    matrix(
-      st_bbox(st_transform(basesf, 4326)), nrow = 2,
-      dimnames = list( c("x","y")
-                       ,c("min","max"))
-    )
+attach.tract.geometry <- function(cts) {
 
-  osm_sf <- opq(bboxstr) %>%
-    add_osm_feature (features) %>%
-    osmdata_sf
+  # add geometries
+  out <- st_sf(
+    left_join(cts,
+              divDat::cts))
 
-  return(osm_sf)
+  # remove water tracts with 0 or NA populations
+  out <- out %>%
+    filter(!st_is_empty(.))
+
+  return(out)
 }
 
 
-# deprecated --------------------------------------------------------------
-
-
-#' build_identifier_df
+#' remove.water.areas
 #'
-#' Helper function for fcns that split list of division types x regions. Designed for retaining
-#' identifiers; i.e., cz & cz_name for regions.
-build_identifier_df <- function(df, split_cols) {
-
-  ids <-
-    suppressMessages(
-      purrr::map_dfc(split_cols,
-                     ~unique(data.frame(pull(df, .)))))
-
-  colnames(ids) <- split_cols
-  return(ids)
-}
-
-
-#' return.to.polygon
-#'
-#' Transforms point output from largest.centers.in.region fcn back to polygons.
-#' Assumes column names were unchanged.
-return.to.polygon <- function(point.data, poly.data) {
-
-  point.data %>%
-    abv_out() %>%
-    left_join(poly.data) %>%
-    st_sf()
-}
-
+#' Requires an active connection to a spatial database with a divs.

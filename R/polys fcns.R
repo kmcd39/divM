@@ -1,23 +1,24 @@
 
 #' subset.polys.divs
 #'
-#' Preps "division" data, whether water, highways, etc, to generate polygon
-#' measure for supplied region. If, as with NHPN data, the divisions have an
-#' "identifier column," the later arguments can be specified to control what
-#' divisions are kept for polygon creation.
-#' @param region 1 sf polygon to create sub-division measures for
+#' Preps "division" data, whether water, highways, etc, to generate polygon measure
+#' for supplied region. If, as with NHPN data, the divisions have an "identifier
+#' column," the later arguments can be specified to control what divisions are kept
+#' for polygon creation.
+#' @param region 1-row sf polygon to create sub-division measures for
 #' @param div.sf sf object with division.
-#' @param div.identifier.column If 'div.sf' has an identifier column to be used
-#'   to filter by, supply here. Must be supplied for subsequent arguments to work.
-#' @param divs.always.include Always include divisions that have this value in
-#'   the identifier column
-#' @param divs.include.intersecting Include additional divisions that don't have
-#'   above identifier, but which intersect with divs that do.
-#' @param remove.NA.divs Whether or not to remove all divisions with an NA in the identifier column.
-#' @export
+#' @param div.identifier.column If 'div.sf' has an identifier column to be used to
+#'   filter by, supply here. Must be supplied for subsequent arguments to work.
+#' @param always.include Always include divisions that have this value in the
+#'   identifier column
+#' @param include.intersecting Include additional divisions that don't have above
+#'   identifier, but which intersect with divs that do.
+#' @param remove.NA.divs Whether or not to remove all divisions with an NA in the
+#'   identifier column.
+#' @export subset.polys.divs
 subset.polys.divs <- function(region, div.sf,
                               div.identifier.column = NULL,
-                              divs.always.include = NULL, divs.include.intersecting = F,
+                              always.include = NULL, include.intersecting = F,
                               remove.NA.divs = T, ...) {
 
   # trim to region
@@ -32,19 +33,19 @@ subset.polys.divs <- function(region, div.sf,
     div <- div %>% filter(! is.na(!!rlang::sym(div.identifier.column)) )
 
   # trim to always included types
-  if( !is.null(divs.always.include) )
+  if( !is.null(always.include) )
     divP <- div %>%
       filter(!!rlang::sym(div.identifier.column)
-             %in% divs.always.include)
+             %in% always.include)
   else divP <- div
 
   # end here if finished
-  if( is.null(divs.include.intersecting) |
-      !divs.include.intersecting) return(divP)
+  if( is.null(include.intersecting) |
+      !include.intersecting) return(divP)
 
   # Incl hwys that intersect otherwise ------------
   rt <- div %>%
-    filter(! (!!rlang::sym(div.identifier.column) %in% divs.always.include) )
+    filter(! (!!rlang::sym(div.identifier.column) %in% always.include) )
 
   touches.p <- st_filter(rt, divP)
 
@@ -59,23 +60,38 @@ subset.polys.divs <- function(region, div.sf,
 
 #' polygonal.div
 #'
-#' Given a boundary and corresponding divisions, within boundary, filters by
-#' div.type (currently hardcoded to SIGNT1 column), then finds number of
-#' sub-polygons in region. Returns a dataframe with region identifiers and
-#' number of polygons. Filter all subpolygons w/ area between 50,000 m^2 (these
-#' comprise highway interchanges for example.) Also applies "negative buffer" --
-#' i.e., shrinks the area to find polygons. This handles issues where hwy
-#' resolution is slightly different from that of CZs or ends slightly earlier at
-#' international boundary. It also means that if a hwy ends or changes class a
-#' few meters from the cz boundary, it can still count as a division. (Operative
-#' difference in Dallas, TX, for example)
-#'
+#' Given a boundary and corresponding divisions, within boundary, filters by div.type
+#' (currently hardcoded to SIGNT1 column), then finds number of sub-polygons in
+#' region. Returns a dataframe with region identifiers and number of polygons. Filter
+#' all subpolygons w/ area between 50,000 m^2 (these comprise highway interchanges
+#' for example.) Also applies "negative buffer" -- i.e., shrinks the area to find
+#' polygons. This handles issues where hwy resolution is slightly different from that
+#' of CZs or ends slightly earlier at international boundary. It also means that if a
+#' hwy ends or changes class a few meters from the cz boundary, it can still count as
+#' a division. (Operative difference in Dallas, TX, for example)
+#' @param negative.buffer Shrink region by this amount only for calculating polygons.
+#'   Useful for handling shpfiles w/ different resolutions, especially for regions
+#'   along an international border. Defaults to 100m.
+#' @param min.size Minimum (area) size for population, in meters. Defaults to 5e5, or
+#'   1/2 a km^2. Set to NULL to not filter by size.
+#' @param min.population.count Minimum population that must fall into a polygon
+#'   subdivision for it to be counted. Population is interpolated from census tracts
+#'   based on % area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
+#'   the filter.
+#' @param min.population.perc Minimum percent % of population that must fall into a
+#'   polygon subdivision for it to be counted. Population is interpolated from census
+#'   tracts based on % area overlap of CT within sub-polygon. Set to NULL or 0 to not
+#'   apply the filter.
+#' @param return.sf If true, returns an sf object, w/ one row per polygon
+#'   subdivision, that can easily be mapped. If false (default), returns a one row df
+#'   for region with columns for region identifiers and number of polygons.
+#' @export polygonal.div
 polygonal.div <- function(  region, divs
                             , negative.buffer = 100
                             , min.size = 5e5
-                            , min.population.count = 1000
+                            , min.population.count = NULL
                             , min.population.perc = NULL
-                            , verbose = T, return.sf = F, ...) {
+                            , verbose = F, return.sf = F, ...) {
   require(lwgeom)
   region.type = unique(region$region.type)
   region.id = unique(region$region.id)
@@ -94,74 +110,86 @@ polygonal.div <- function(  region, divs
   polys <-
     st_split(st_buffer(region
                        , -negative.buffer)
-             , divs) %>%
-    select(contains("region.")) %>%
-    rmapshaper::ms_explode() %>%
-    mutate(id = 1:nrow(.))
+             , divs)$geometry
 
-  polys <- st_make_valid(polys)
-
+  polys <- rmapshaper::ms_explode(polys)
+  polys <- st_make_valid(polys) %>% st_sf()
   polys <- handle.overlaps(polys)
 
   # filter by size if appropriate
   if( min.size > 0 )
     polys <- polys %>%
     st_transform(4326) %>%
-    rmapshaper::ms_explode() %>%
     mutate(area = as.numeric(
            st_geod_area(geometry))) %>%
     filter(area > min.size) %>%
-    st_transform(initial.crs) %>%
-    mutate(id = 1:nrow(.))
+    st_transform(initial.crs)
 
   # filter by population if appropriate
   if( is.numeric(min.population.count) |
       is.numeric(min.population.perc) )
     polys <- trim.polys.by.pop( polys, region.id, region.type
-                                ,min.population.count, min.population.perc, return.sf)
+                                ,min.population.count, min.population.perc,
+                                return.sf )
 
-  if(return.sf) return(polys)
+  # number the subpolygons
+  polys$id = 1:nrow(polys)
 
-  out <- polys %>%
-    select(region.id, region.name, region.type) %>%
-    mutate(n.polys = max(polys$id)) %>%
-    distinct()
+  # return sf w/ each polygonal subdivision...
+  if(return.sf)
+    return(polys)
+
+  # ... or a 1-row tibble with region ids and poly count.
+  out <- tibble(
+    region.id = region.id,
+    region.type = region.type,
+    region.name = region$region.name,
+    n.polys = nrow(polys)
+  )
 
   return(out)
 }
 
 #' trim.polys.by.pop
 #'
-#' Trims polygons by population. Helper fcn called from polygonal.div if min.population has a non-null value.
-#' CT table with population and tract identifiers is hardcoded in; expects 'cts' table in environment.
+#' Trims polygons by population. Helper fcn called from polygonal.div if
+#' min.population has a non-null value. Uses helpers bundled in package (and depening
+#' on divDat package) to construct tract populations.
+#' @inheritParams polygonal.div
+#' @importFrom areal aw_interpolate
 trim.polys.by.pop <- function(sub.polys, region.id,
                               region.type = "cz",
-                              min.population.count = NULL, min.population.perc = NULL
-                              , return.sf) {
+                              min.population.count = NULL,
+                              min.population.perc = NULL,
+                              return.sf = F) {
 
   # filter cts to area
-  cz.tracts = cts %>%
+  cz.tracts = divM::ct.pops %>%
     filter(!!rlang::sym(region.type) == region.id) %>%
-    st_make_valid() %>%
-    select(geoid, population) # geoid gisjoin
+    select(geoid, population) %>%
+    divM::attach.tract.geometry()
+
   #  & get total population for area
-  cz.pop = sum(cz.tracts$population)
+  cz.pop = sum(cz.tracts$population, na.rm = T)
 
   # buffer 0 pre-validate trick
-  sub.polys <- sub.polys %>% st_buffer(0)
-  cts <- cts %>% st_buffer(0)
+  # sub.polys <- sub.polys %>% st_buffer(0)
 
+  # add ids to polys for interpolation
+  sub.polys$id = 1:nrow(sub.polys)
+
+  # interpolate
   return.class = case_when(return.sf ~ "sf",
                            !return.sf ~ "tibble")
 
-  polys = areal::aw_interpolate( sub.polys, tid = id   ### seems there is a bug here....
-                                 ,cz.tracts, sid = geoid # gisjoin
-                                 ,weight = "total" # tracts are co-terminous w/ czs
+  polys = areal::aw_interpolate( sub.polys, tid = id
+                                 ,cz.tracts, sid = geoid
+                                 ,weight = "sum" #"total"
                                  ,extensive = c("population")
                                  ,output = return.class )
 
   polys = polys %>%
-    mutate(pop.perc = population / cz.pop)
+    mutate(pop.perc = population / cz.pop * 100)
 
   # filter by total population and/or percent, based on which arguments are supplied
   if( is.numeric(min.population.count) )
@@ -171,12 +199,9 @@ trim.polys.by.pop <- function(sub.polys, region.id,
     polys = polys %>%
     filter(pop.perc >= min.population)
 
-  # count em up
-  polys = polys %>%
-    mutate(id = 1:nrow(.))
-
   return(polys)
 }
+
 
 #' handle.overlaps
 #'
@@ -197,10 +222,8 @@ handle.overlaps <- function(x) {
 #' fill.single.gap
 #'
 #' Uses segment endpoints and connects those within threshold distance. Creates
-#' continuous line that I think is as appropriate as possible.
-#' @param edge Single line segment-- 1 row of larger sf \code{lines}
-#' @param lines Other lines to check with \code{edge} to possibly fill gap to edge
-#'   to.
+#' continuous line that I think is as appropriate as possible. First two arguments
+#' are taken from call within fill.gaps.
 #' @param threshold Threshold in crs units. Fill gap if distance between endpoint of
 #'   given edge and another in \code{lines} is < this threshold.
 #' @param verbose Whether to print alert when a gap is filled.
@@ -251,7 +274,7 @@ fill.single.gap <- function(edge, nodes, threshold = 200, ...) {
 #'   is run on it
 #' @param return.gap.map Return mapview leaflet to visualize output of fcn
 #' @inheritDotParams fill.single.gap
-fill.gaps <- function(hwy, return.gap.map = F, ...) {
+fill.gaps <- function(hwy, return.gap.map = F, verbose = T, ...) {
   hwy.type <- unique(hwy$SIGNT1)
   hwy.id <- unique(hwy$SIGN1)
 
@@ -265,7 +288,8 @@ fill.gaps <- function(hwy, return.gap.map = F, ...) {
     out <- hwy %>% select(SIGN1, SIGNT1, geometry) %>% mutate(id = 1)
     return(out)
   }
-  cat("fixing",hwy.id,"\n")
+  if(verbose)
+    cat("fixing",hwy.id,"\n")
 
   # to fill gaps, first get endpoints of existing segments
   hwy.n = find.endpoint.nodes(hwy)
@@ -301,8 +325,10 @@ fill.gaps <- function(hwy, return.gap.map = F, ...) {
 
 #' Fix all hwys
 #'
-#' Fixes all hwys in place from raw data from subset of raw nhpn data
-#' @inheritDotParams fill.gaps
+#' Fixes all hwys in place from raw data from subset of raw nhpn data. Note these
+#' functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
+#' @inheritParams fill.gaps
+#' @inheritDotParams fill.single.gap
 #' @export
 Fix.all.hwys <- function(hwy, ...) {
 
@@ -339,44 +365,11 @@ Fix.all.hwys <- function(hwy, ...) {
 #' Polys.wrapper
 #'
 #' Wraps all the functions used to generate the polygonal subdivision measure.
-#' @inheritParams subset.polys.divs
-#' @inheritParams denode.lines
-#' @inheritParams fill.gaps
-#' @param region 1 sf polygon to create sub-division measures for
-#' @param div.sf sf object with division.
-#' @section Passed to Fix.all.hwys fcn
-#' @param fill.gaps Whether to check for and may fill small gaps between line
-#'   segments of division. Specify \code{threshold} for maximum gap size to
-#'   be filled in.
-#' @param threshold maximum gap size to be filled in, in meters, if fill.gaps is
-#'   TRUE.
-#' @section Passed to subsetting fcn subset.polys.divs
-#' @param div.identifier.column If 'div.sf' has an identifier column to be used
-#'   to filter by, supply here. Must be supplied for subsequent arguments to
-#'   work. For NHPN data, this is likely "SIGNT1"
-#' @param divs.always.include Always include divisions that have this value in
-#'   the identifier column. I.e., Interstate for hwy identifier.
-#' @param divs.include.intersecting Include additional divisions that don't the
-#'   have above identifier, but which intersect with divs that do.
-#' @param remove.NA.divs Whether or not to remove all divisions with an NA in
-#'   the identifier column.
-#' @section Passed to polygonal.div
-#' @param negative.buffer Shrink region by this amount only for calculating
-#'   polygons. Useful for handling shpfiles w/ different resolutions, especially
-#'   for regions along an international border. Defaults to 100m.
-#' @param min.size Minimum (area) size for population, in meters. Defaults to
-#'   5e5, or 1/2 a km^2. Set to NULL to not filter by size.
-#' @param min.population.count Minimum population that must fall into a polygon
-#'   subdivision for it to be counted. Population is interpolated from census
-#'   tracts based on % area overlap of CT within sub-polygon. Set to NULL or 0
-#'   to filter by percent instead.
-#' @param min.population.perc Minimum percent % of population that must fall
-#'   into a polygon subdivision for it to be counted. Population is interpolated
-#'   from census tracts based on % area overlap of CT within sub-polygon.
-#' @param return.sf If true, returns an sf object, w/ one row per polygon
-#'   subdivision, that can easily be mapped. If false (default), returns a one
-#'   row df for region with columns for region identifiers and number of
-#'   polygons.
+#' @inheritParams polygonal.div
+#' @inheritDotParams subset.polys.divs
+#' @inheritDotParams Fix.all.hwys
+#' @inheritDotParams polygonal.div
+#' @export
 Polys.wrapper <- function( region, div.sf, fill.gaps = F, ...) {
 
   divs <- subset.polys.divs(region, div.sf, ...)
@@ -392,6 +385,9 @@ Polys.wrapper <- function( region, div.sf, fill.gaps = F, ...) {
 }
 
 
+
+
+
 # troubleshooting ---------------------------------------------------------
 '
 tmpcz <- czs[grepl("Minneapolis" # "Corinth"
@@ -405,8 +401,8 @@ mn.watr = Polys.wrapper(  region = tmpcz
                           , div.sf = gsw
                           , fill.gaps = F
                           , div.identifier.column = NULL
-                          , divs.always.inculude = NULL
-                          , divs.include.intersecting = NULL
+                          , always.inculude = NULL
+                          , include.intersecting = NULL
                           , remove.NA.divs = F
                           , negative.buffer = 100
                           , min.size = 0
@@ -427,8 +423,8 @@ mn.int = Polys.wrapper(  region = tmpcz
                          , div.sf = nhpn
                          , fill.gaps = T
                          , div.identifier.column = "SIGNT1"
-                         , divs.always.include = "I"
-                         , divs.include.intersecting = F
+                         , always.include = "I"
+                         , include.intersecting = F
                          , remove.NA.divs = T
                          , negative.buffer = 100
                          , min.size = 0
@@ -446,8 +442,8 @@ mn.lac = Polys.wrapper(  region = tmpcz
                          , div.sf = lac
                          , fill.gaps = T
                          , div.identifier.column = "SIGNT1"
-                         , divs.always.include = NULL
-                         , divs.include.intersecting = F
+                         , always.include = NULL
+                         , include.intersecting = F
                          , remove.NA.divs = T
                          , negative.buffer = 100
                          , min.size = 0

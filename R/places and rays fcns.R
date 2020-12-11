@@ -1,31 +1,4 @@
 
-#' largest.centers.in.region
-#'
-#' Takes population centers, represented as a shapefile (probably of places or
-#' sub-county divisions), with a column for population. For each larger region
-#' in the second argument, finds the largest population center of that larger area.
-#' Note do not include duplicate columns in the two supplied dataframes.
-#' Returns the largest population center in each larger region as a dataframe with point geometries
-#' @export
-largest.centers.in.region <- function(centers, region) {
-  # first puts in conic projection
-  centers <- conic.transform(centers)
-  region <- conic.transform(region)
-
-  # then, to account for different resolutions, clipping, irregular shapes, etc.
-  # it gets a "centroid on surface" for smaller areas to spatial join by.
-  centers <- st_point_on_surface(centers)
-
-  # joins with larger areas, groups by larger areas, and filters to largest
-  # small area by population w/ each larger area
-  out <- st_join(centers,
-                 region) %>%
-    group_by_at(all_of( setdiff(colnames(region), "geometry") )) %>%
-    filter(population == max(population, na.rm = T)) %>%
-    ungroup()
-  return(out)
-}
-
 # ray generation fcns ---------------------------------------------------------
 
 # these fcns are written as specialized fcns to generate the ray measures. The
@@ -130,6 +103,7 @@ initial.hwy2ray.subset <- function(place, hwy.sf, hwy.types = NULL, buffer.meter
 #' @param id.col specifies what column must have minimum \code{length.floor}
 #'   within the region. I.e., it should be SIGN1 when filtering out grouped sf by routes
 #'   and it should be "id" if filtering exploded sf by segments.
+#' @importFrom units set_units
 trim.to.length.floor <- function(region, divisions, length.floor = 1000, id.col = "SIGN1", verbose = T, ...) {
   require(lwgeom)
   if(verbose)
