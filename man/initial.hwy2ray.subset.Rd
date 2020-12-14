@@ -7,13 +7,29 @@
 initial.hwy2ray.subset(
   place,
   hwy.sf,
+  always.include = c("I"),
+  include.intersecting = FALSE,
   hwy.types = NULL,
   buffer.meters = 300,
   ...
 )
 }
+\arguments{
+\item{always.include}{Type(s) of highways to always include for ray measure if
+\code{include.intersecting} is false. By default only interstates}
+
+\item{include.intersecting}{Whether or not to include additional highway types if
+they intersect with one or more of the core/always included hwy types.}
+
+\item{hwy.types}{Other types of hwys to include if and only if they intersect with
+the core, "always.included" type(s). Only relevant if
+\code{include.intersecting} is true. No filter applied if left as NULL
+(default).}
+
+\item{buffer.meters}{Amount of padding around the Place to retain when trimming
+highways to place and surrounding area. Defaults to 300 meters.}
+}
 \description{
-Sets up road objects for ray measures. Takes intersection of hwys with the
-place's buffered convex hull, trims NA routes and aggregates by type, trims to length
-floor, so each route must have a minimum distance within place boundary.
+Sets up road objects for ray measures. Ensures uniform CRS, trims hwys to those
+surrounding the Place, and parses arguments around which hwys to include.
 }

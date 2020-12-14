@@ -14,12 +14,18 @@ trim.to.length.floor(
 )
 }
 \arguments{
-\item{id.col}{specifies what column must have minimum \code{length.floor}
-within the region. I.e., it should be SIGN1 when filtering out grouped sf by routes
-and it should be "id" if filtering exploded sf by segments.}
+\item{length.floor}{Filters highways by route if the total length of all portions
+of the highway within the area is below this threshold. Default is 1 km.}
+
+\item{id.col}{specifies what column must have minimum \code{length.floor} within
+the region. I.e., it should be SIGN1 when filtering out NHPN data grouped by
+this column}
+
+\item{verbose}{Display additional text output in console. Makes explicit some
+parameters that are passed to wrapped fcns and will say where ineligible rays
+are removed due to issue described above.}
 }
 \description{
-Trims a set of highways to those for which the whole stretch of highway
-inside the region has minimum length \code{length.floor} in meters. 1 km by
-default.
+Trims a set of highways to those for which the whole stretch of highway inside the
+region has minimum length \code{length.floor} in meters. 1 km by default.
 }
