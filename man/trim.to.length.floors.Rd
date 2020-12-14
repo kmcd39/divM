@@ -20,8 +20,7 @@ must have in order to be eligible for rays, This differs from
 \item{minimum.hwy.length}{Minimum length of each ~highway~ that must be inside
 place boundaries for it to be ray-eligible. Differs from minimum.segment.length
 in that at least one segment of hwy must meet this threshold for ~any~ of the
-segments to be eligible. Only relevant if larger than
-minimum.segment.length and}
+segments to be eligible. Only relevant if larger than minimum.segment.length and}
 }
 \description{
 Trims a set of highways to those for which the whole stretch of highway inside the

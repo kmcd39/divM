@@ -7,7 +7,9 @@
 hwys2endpoints(place, trimmed.hwys, fill.gaps = T, verbose = T, ...)
 }
 \arguments{
-\item{fill.gaps}{whether or not to fill gaps between}
+\item{fill.gaps}{whether or not to fill gaps between highway segments. Argument
+\code{threshold} can also be supplied specify maximum gap distance to fill gap
+btwn.}
 
 \item{verbose}{Display additional text output in console. Makes explicit some
 parameters that are passed to wrapped fcns and will say where ineligible rays
@@ -22,8 +24,7 @@ must have in order to be eligible for rays, This differs from
     \item{\code{minimum.hwy.length}}{Minimum length of each ~highway~ that must be inside
 place boundaries for it to be ray-eligible. Differs from minimum.segment.length
 in that at least one segment of hwy must meet this threshold for ~any~ of the
-segments to be eligible. Only relevant if larger than
-minimum.segment.length and}
+segments to be eligible. Only relevant if larger than minimum.segment.length and}
     \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
 is run on it}
     \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}

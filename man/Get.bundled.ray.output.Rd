@@ -10,9 +10,6 @@ Get.bundled.ray.output(place, trimmed.hwys, include.map = TRUE, ...)
 \item{trimmed.hwys}{hwys prepped for supplied place, as with
 \code{initial.hwy2ray.subset}}
 
-\item{include.map}{whether or not to generate a map along with the measure.
-Defaults to TRUE; set to FALSE to save time.}
-
 \item{...}{additional parameters passed onto mapview, if map is being returned.}
 }
 \description{

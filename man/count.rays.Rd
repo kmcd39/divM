@@ -37,22 +37,11 @@ must have in order to be eligible for rays, This differs from
 \item{minimum.hwy.length}{Minimum length of each ~highway~ that must be inside
 place boundaries for it to be ray-eligible. Differs from minimum.segment.length
 in that at least one segment of hwy must meet this threshold for ~any~ of the
-segments to be eligible. Only relevant if larger than
-minimum.segment.length and}
+segments to be eligible. Only relevant if larger than minimum.segment.length and}
 
-\item{ray.node.distance.threshold}{Sometimes there is a small gap in a highway at
-an interchange or something. If this happens outside of a city, we should make
-sure both sides of the gap aren't counted as extra rays. This defines the
-minimum distance between segment endpoints that, when they belong to the some
-route, would mean that neither is counted as a ray. Defaults to 100m. If it's
-NULL, skips this step.}
-
-\item{filter.colinear.node.threshold}{if this is not NULL (default), remove ray
-nodes in given threshold proximity of one another. May be useful if two highways
-are colinear or parallel and nearby and you don't want to count multiple rays.}
-
-\item{include.map}{whether or not to generate a map along with the measure.
-Defaults to TRUE; set to FALSE to save time.}
+\item{fill.gaps}{whether or not to fill gaps between highway segments. Argument
+\code{threshold} can also be supplied specify maximum gap distance to fill gap
+btwn.}
 
 \item{verbose}{Display additional text output in console. Makes explicit some
 parameters that are passed to wrapped fcns and will say where ineligible rays
