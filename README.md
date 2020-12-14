@@ -5,3 +5,8 @@ The library contains more-or-less flexible functions to generate these various m
 All code to generate sets of measures is (or will eventually be) in the data-raw/ directory and subfolders. Markdowns illustrating these measures are in most cases bundled with the code in subfolders in data-raw/
 
 Eventually output measures for given datasets/parameters will be exported with the package.
+
+Install with ```r
+# install.packages("devtools")
+devtools::install_github("https://github.com/kmcd39/divM.git")
+```
