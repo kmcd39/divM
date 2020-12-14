@@ -6,7 +6,8 @@ All code to generate sets of measures is (or will eventually be) in the data-raw
 
 Eventually output measures for given datasets/parameters will be exported with the package.
 
-Install with ```r
+Install with 
+```r
 # install.packages("devtools")
 devtools::install_github("https://github.com/kmcd39/divM.git")
 ```
