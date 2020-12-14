@@ -288,8 +288,6 @@ fill.gaps <- function(hwy, return.gap.map = F, verbose = T, ...) {
     out <- hwy %>% select(SIGN1, SIGNT1, geometry) %>% mutate(id = 1)
     return(out)
   }
-  if(verbose)
-    cat("fixing",hwy.id,"\n")
 
   # to fill gaps, first get endpoints of existing segments
   hwy.n = find.endpoint.nodes(hwy)
@@ -301,6 +299,10 @@ fill.gaps <- function(hwy, return.gap.map = F, verbose = T, ...) {
   # return early if no gaps filled
   if( all(map_lgl(fillers, ~(nrow(.) == 0))) )
     return(hwy)
+
+  # alert user gap being filled if verbose
+  if(verbose)
+    cat("filling gap in",hwy.id,"\n")
 
   fillers <- do.call("rbind", fillers)
 

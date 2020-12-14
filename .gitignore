@@ -51,3 +51,4 @@ vignettes/*.pdf
 
 # any R script prefixed with '.' character
 .*.R
+inst/doc

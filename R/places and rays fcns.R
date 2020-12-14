@@ -2,12 +2,12 @@
 # ray generation fcns ---------------------------------------------------------
 
 # these fcns are written as specialized fcns to generate the ray measures. The
-# fcn count.rays wraps the necessary steps and is the only thing that has to be
+# fcn Count.rays wraps the necessary steps and is the only thing that has to be
 # called directly to generate.
 
 
 
-#' count.rays
+#' Count.rays
 #'
 #' given the geoid of a place and sf objects containing hwy information and place
 #' information, this calls each step to count the rays. Returns the number of rays
@@ -24,11 +24,14 @@
 #'   (default).
 #' @param buffer.meters Amount of padding around the Place to retain when trimming
 #'   highways to place and surrounding area. Defaults to 300 meters.
-#' @param length.floor Filters highways by route if the total length of all portions
-#'   of the highway within the area is below this threshold. Default is 1 km.
-#' @param min.segment.length Filters highway segments by length. I.e., if a highway
-#'   route branches into multiple segments, this will filter segments that have less
-#'   than this threshold within the area. Default is 500m.
+#' @param minimum.segment.length Minimum length (meters) that each highway ~segment~
+#'   must have in order to be eligible for rays, This differs from
+#'   \code{minimum.hwy.length} in that it counts each separate
+#' @param minimum.hwy.length Minimum length of each ~highway~ that must be inside
+#'   place boundaries for it to be ray-eligible. Differs from minimum.segment.length
+#'   in that at least one segment of hwy must meet this threshold for ~any~ of the
+#'   segments to be eligible. Only relevant if larger than
+#'   minimum.segment.length and
 #' @param remove.holes Remove holes from places before counting rays. If a hwy
 #'   starts/ends in a hole, it will be counted as a ray unless this is set to TRUE
 #' @param ray.node.distance.threshold Sometimes there is a small gap in a highway at
@@ -47,7 +50,8 @@
 #'   are removed due to issue described above.
 #' @importFrom nngeo st_remove_holes
 #' @export
-count.rays <- function(place.geoid, place.sf, hwy.sf, remove.holes = FALSE, ...) {
+Count.rays <- function(place.geoid, hwy.sf, remove.holes = FALSE,
+                       place.sf = largest.plc.in.cz, ...) {
   require(sf)
   require(dplyr)
   # filter to specified place
@@ -70,11 +74,12 @@ count.rays <- function(place.geoid, place.sf, hwy.sf, remove.holes = FALSE, ...)
 #'
 #' Sets up road objects for ray measures. Ensures uniform CRS, trims hwys to those
 #' surrounding the Place, and parses arguments around which hwys to include.
-#' @inheritParams count.rays
+#' @inheritParams Count.rays
 #' @export
 initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
                                    include.intersecting = FALSE,
                                    hwy.types = NULL,
+                                   drop.NA = TRUE,
                                    buffer.meters = 300, ...) {
 
   # ensure common crs
@@ -83,6 +88,9 @@ initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
   # trim to buffered hull containing place
   hwy <- st_intersection(buffered.hull(place, buffer = buffer.meters)
                          ,hwy)
+
+  if(drop.NA)
+    hwy <- hwy %>% filter(!is.na(SIGN1))
 
   if(!is.null(hwy.types))
     hwy <- hwy %>% filter(SIGNT1 %in% hwy.types)
@@ -115,52 +123,101 @@ initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
 
 
 
-#' trim.to.length.floor
+#' trim.to.length.floors
 #'
 #' Trims a set of highways to those for which the whole stretch of highway inside the
 #' region has minimum length \code{length.floor} in meters. 1 km by default.
-#' @inheritParams count.rays
-#' @param id.col specifies what column must have minimum \code{length.floor} within
-#'   the region. I.e., it should be SIGN1 when filtering out NHPN data grouped by
-#'   this column
-trim.to.length.floor <- function(region, divisions,
-                                 length.floor = 1000,
-                                 id.col = "SIGN1", verbose = T, ...) {
+#' @inheritParams Count.rays
+trim.to.length.floors <- function(region, divisions,
+                                 minimum.segment.length = 10,
+                                 minimum.hwy.length = 1000, ...) {
   require(lwgeom)
 
-  if(verbose)
-    cat("Trimming to hwys w/ minimum length of", length.floor, "in", region$geoid,"\n")
+  # add/reset division id column
+  divisions$id <- 1:nrow(divisions)
 
-  # get hwys contained w/in region. Use 0 buffer trick so it doesn't fail for
+  # get portions of supplied hwys contained in region. Use 0 buffer trick so it doesn't fail for
   # weird-shaped/gerrymandered places.
   div.in.region <- st_intersection(divisions,
-                                   st_buffer(region, 0))
-
-  to.keep <- div.in.region %>%
+                                   st_buffer(region, 0)) %>%
     mutate(length.in.area =
-             as.numeric(geod.length(.))) %>%
-    filter(length.in.area >= length.floor) %>%
-    pull(!!id.col)
+             as.numeric(geod.length(.)))
 
-  # filter original divisions to those that weren't filtered out
-  out <- divisions %>% filter(!!rlang::sym(id.col) %in% to.keep)
+  # get hwys and segment IDs that exceed floors
+  hwys.to.keep <- div.in.region %>%
+    filter(length.in.area >= minimum.hwy.length) %>%
+    pull(SIGN1)
 
-  return(out)
+  segments.to.keep <- div.in.region %>%
+    filter(length.in.area >= minimum.segment.length) %>%
+    pull(id)
+
+  # filter to eligible hwys/segments
+  divisions <- divisions %>%
+    filter(SIGN1 %in% hwys.to.keep &
+             id %in% segments.to.keep)
+
+
+  return(divisions)
 }
+
+
+#' hwys2endpoints
+#'
+#' From the branch in above fcn where it checks hwy types to include, this
+#' generates ray-constituting nodes. Can filter out very small segments; by
+#' default removes those w/ less than .5km in place boundary
+#' @param fill.gaps whether or not to fill gaps between
+#' @inheritParams Count.rays
+#' @inheritDotParams trim.to.length.floors
+#' @inheritDotParams fill.gaps
+hwys2endpoints <- function(place, trimmed.hwys,
+                           fill.gaps = T,
+                           verbose = T, ...) {
+
+  if (nrow(hwys) == 0)
+    return(NULL)
+
+  # denode / spatial clean
+  hwys <- denode.lines(trimmed.hwys)
+
+  if(fill.gaps)
+    hwys <- Fix.all.hwys(hwys, ...) # code for this is with polygon fcns
+
+  # filter to length by hwy/segment
+  hwys <- trim.to.length.floors(place, hwys, ...)
+
+  # find nodes and count based on coverage
+  hw.nodes <- find.endpoint.nodes(hwys)
+
+  # check coverage. do tiny negative buffer for international border issue. (Need to check this!)
+  coverage <- st_covered_by(hw.nodes,
+                            st_buffer(place, -10))
+
+  # rays are recognized when a start/endpoint of a hwy segment lies outside the
+  # place boundary
+  hw.nodes$coverd = as.logical(lengths(coverage))
+  hw.nodes$outside = !hw.nodes$coverd
+
+  return(hw.nodes)
+}
+
+
 
 
 #' Get.bundled.ray.output
 #'
-#' Calls \code{hwys2ray.nodes}, which finds all line start/endpoints that would
-#' constitute a ray. This function counts those up and bundles with a map of rays if
+#' Calls \code{hwys2endpoints}, which finds all line start/endpoints t whether each
+#' constitutes a ray. This function counts rays up and bundles with a map, if
 #' \code{include.map} is TRUE
-#' @inheritParams count.rays
+#' @inheritParams Count.rays
 #' @param trimmed.hwys hwys prepped for supplied place, as with
 #'   \code{initial.hwy2ray.subset}
 #' @param ... additional parameters passed onto mapview, if map is being returned.
 #' @export
 Get.bundled.ray.output <- function(place, trimmed.hwys, include.map = TRUE, ...) {
 
+  # fcn if no rays are found-- multiple lines so map can still be outputted
   return.null.early <- function(ray.nodes, include.map, trimmed.hwys) {
     if(include.map) {
       out$map <- mapview::mapview(st_boundary(place), color = "#800030")
@@ -171,30 +228,30 @@ Get.bundled.ray.output <- function(place, trimmed.hwys, include.map = TRUE, ...)
     return(out)
   }
 
-  # hwys2ray.nodes call ---------------------------------------------------
+  # ID ray nodes -----------------------------------------------------------------
 
-  # this finds all line start/endpoints that would constitute a ray
-  ray.nodes <- hwys2ray.nodes(place, trimmed.hwys, ...)
+  # this finds all line start/endpoints and identifies whether each constitutes a ray
+  hw.nodes <- hwys2endpoints(place, trimmed.hwys, ...)
 
   # prep returned object ---------------------------------------------------
 
   # both ray count & mapview object.
   out <- list()
 
-  # If no rays found, return 0
-  if( is.null(ray.nodes) )
-    return(return.null.early(ray.nodes, include.map, trimmed.hwys))
+  # If no hw nodes found, return 0
+  if( is.null(hw.nodes) )
+    return(return.null.early(hw.nodes, include.map, trimmed.hwys))
 
   # do the work if not NULL
-  ray.nodes <- ray.nodes[ray.nodes$outside, ]
+  hw.nodes <- hw.nodes[hw.nodes$outside, ]
 
 
-  if( is.null(ray.nodes) ) #(filtering nodes may make null again esp. for interstate plan..)
-    return(return.null.early(ray.nodes, include.map, trimmed.hwys))
+  if( is.null(hw.nodes) ) #(filtering nodes may make null again esp. for interstate plan..)
+    return(return.null.early(hw.nodes, include.map, trimmed.hwys))
 
-  ray.nodes$n <- factor(1:nrow(ray.nodes))
+  hw.nodes$n <- factor(1:nrow(hw.nodes))
 
-  node.counts <- ray.nodes %>%
+  node.counts <- hw.nodes %>%
     group_by(SIGNT1, SIGN1) %>%
     summarise(endpoints.outside = sum(outside))
 
@@ -203,7 +260,7 @@ Get.bundled.ray.output <- function(place, trimmed.hwys, include.map = TRUE, ...)
 
   if(include.map) {
     out$map <-
-      mapview::mapview(st_jitter(ray.nodes), zcol = "SIGN1",
+      mapview::mapview(st_jitter(hw.nodes), zcol = "SIGN1",
                        cex = 11.5, color = "#e042f5"
                        #,col.regions = RColorBrewer::brewer.pal(8, "Dark2")
       ) +
@@ -216,166 +273,5 @@ Get.bundled.ray.output <- function(place, trimmed.hwys, include.map = TRUE, ...)
 }
 
 
-#' hwys2ray.nodes
-#'
-#' From the branch in above fcn where it checks hwy types to include, this
-#' generates ray-constituting nodes. Can filter out very small segments; by
-#' default removes those w/ less than .5km in place boundary
-hwys2ray.nodes <- function(place, trimmed.hwys, min.segment.length = 10, fill.gaps = T,
-                           verbose = T, ...) {
-
-  # denode / spatial clean
-  hwys <- denode.lines(trimmed.hwys)
-  if (nrow(hwys) == 0)
-    return(NULL)
-
-  # filter to length by segment
-  if (min.segment.length > 0)
-    hwys <- trim.to.length.floor(place, hwys, min.segment.length, id.col = "id")
-
-  # find nodes and count based on coverage
-  hw.nodes <- find.endpoint.nodes(hwys)
-
-  # check coverage. does tiny negative buffer for international border issue. (Need to check this!)
-  coverage <- st_covered_by(hw.nodes,
-                            st_buffer(place, -10))
-
-  # rays are recognized when a start/endpoint of a hwy segment lies outside of the
-  # place boundary
-  hw.nodes$coverd = as.logical(lengths(coverage))
-  hw.nodes$outside = !hw.nodes$coverd
-
-
-  return(hw.nodes)
-}
-
-
-
-#' filter.ineligible.ray.nodes
-#'
-#' Sometimes there is a break or gap in a hwy route just outside of a city,
-#' causing direct endpoint analysis to count extra rays. This filters out ray
-#' nodes if they belong to the same highway route and are within a distance
-#' threshold of each other. #(realizing i probably made this redundant w/ the filtering segments by length floor)
-filter.ineligible.ray.nodes <- function(place, potential.ray.nodes,
-                                        ray.node.distance.threshold = 100, verbose = F, ...) {
-
-  if(is.null(ray.node.distance.threshold)) return(potential.ray.nodes)
-
-  # Split by route and filter out nodes if they're in extremely close proximity to another of same route
-  pl.centroid <- geosphere::centroid(st_coordinates(st_transform(place,4326))[,c("X","Y")])
-  split.potential.ray.nodes <-
-    potential.ray.nodes %>%
-    local_equidistant_project(projection_center = pl.centroid) %>%
-    st_buffer(ray.node.distance.threshold) %>%
-    split(.$SIGN1)
-
-  # (objects are split by hwy route; map through and find which hwy routes have ineligible nodes)
-  sgbpL <- purrr::imap( split.potential.ray.nodes, ~ st_intersects(.) )
-
-  ineligible.ray.node.index <-
-    sgbpL %>%
-    purrr::imap( ~ lengths(.) > 1)
-
-  if(verbose) {
-    message = ineligible.ray.node.index %>% imap( ~sum(.))
-    message = message[message > 0]
-    if(length(message) > 0)
-      cat("Removing ineligible nodes from",place$name,"\n",
-          names(message),"had",unlist(message),"ineligible nodes.\n")
-  }
-  # filter out ineligible ray nodes based on index, and collapse list to data.frame
-  filtered.ray.nodes <-
-    purrr::map2_dfr(split.potential.ray.nodes, ineligible.ray.node.index,
-                    ~`[`(.x , !.y, ))
-
-  return(filtered.ray.nodes)
-}
-
-#' filter.colinear.nodes
-#' Runs if \code{filter.colinear.node.threshold} is set to not NULL, in which
-#' case it removes ray nodes in given threshold proximity of one another. In
-#' general, this should be left as NULL when using NHPN data.
-filter.colinear.nodes <- function(place, potential.ray.nodes,
-                                  filter.colinear.node.threshold = NULL, verbose = F, ...) {
-
-  # skip filter if appropriate
-  if(is.null(filter.colinear.node.threshold)
-     | is.null(potential.ray.nodes)) return(potential.ray.nodes)
-
-  # otherwise find those w/in distance threshold and filter
-  sgbp <- potential.ray.nodes %>% st_buffer(filter.colinear.node.threshold) %>% st_intersects()
-
-  eligible.ray.nodes <- potential.ray.nodes[!duplicated(sgbp),]
-  return(eligible.ray.nodes)
-}
-
 # tests / sample calls / debugs -------------------------------------------
-'PA.rays <-
-  imap( plc.ids,
-        ~ count.rays(., plc, hwys,
-                     verbose = T))'
 
-#count.rays("3728000", plc, hwys, #(Greensboro)
-#           include.intersecting = T,
-#           verbose = T)
-
-'
-plc %>%
-  filter(STATEFP == 25)
-tmp <- plc %>%
-  filter(geoid %in% "2553960")
-
-pfhw <- initial.hwy2ray.subset(tmp, hwys)
-mapview(pfhw ,zcol= "SIGN1")
-
-# pittsfield
-#count.rays("2553960", plc, hwys, return.map = T, verbose = F)
-#Get.bundled.ray.output(tmp, pfhw)
-# boston
-count.rays("2507000", plc, hwys, return.map = T, verbose = T, include.intersecting = T, hwy.types = c("I", "U","S"))
-
-
-
-plc %>% filter(STATEFP == "25")
-count.rays("2507000", plc, hwys, verbose = F)
-
-count.rays("2553960", plc, hwys, verbose = F)
-
-# springfield
-count.rays("2567000", plc, hwys, verbose = F)
-count.rays("2567000", plc, hwys, include.intersecting = T)
-
-tmp <- plc %>%
-  filter(geoid %in% "2567000")
-
-pfs <- st_intersection(hwys, buffered.hull(tmp))
-mapview(pfs ,zcol= "SIGN1") +
-  mapview(st_boundary(tmp))
-'
-'
-# U29 and... I85?
-count.rays(plc.ids["Greensboro"],
-           plc, hwys
-           ,include.intersecting = T
-           ,min.segment.length = 10
-           ,ray.node.distance.threshold= 100#NULL
-           )
-'
-
-'
-
-#count.rays("0455000", plc, intpl, always.include = "plan", min.segment.length = 300) # Phoenix
-count.rays("0177256", plc, intpl
-           , always.include = "plan"
-           , min.segment.length = 300
-           , filter.colinear.node.threshold = 100) # tuscaloosa--- have to filter rays on colinear segments -check
-
-#plc.planned.intst[plc.planned.intst$geoid == "0177256",]
-'
-
-'count.rays(plc.ids["Roanoke"],
-           plc, intpl
-           ,always.include = "plan"
-           ,min.segment.length = 300
-           , filter.colinear.node.threshold = 100)'

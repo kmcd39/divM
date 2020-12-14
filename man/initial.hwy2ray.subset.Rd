@@ -10,6 +10,7 @@ initial.hwy2ray.subset(
   always.include = c("I"),
   include.intersecting = FALSE,
   hwy.types = NULL,
+  drop.NA = TRUE,
   buffer.meters = 300,
   ...
 )
