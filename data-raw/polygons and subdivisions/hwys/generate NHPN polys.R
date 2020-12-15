@@ -34,7 +34,7 @@ hwys[grepl("I[0-9]+", hwys$div.name),]
 czs <- czs %>% divM::conic.transform()
 hwys <- hwys %>% divM::conic.transform()
 
-# all interstates & major arterials ---------------------------------------
+# Limited-access proxy ---------------------------------------
 lac <- hwys %>% filter(FCLASS %in% divM::lac_codes |
                          SIGNT1 == "I")
 

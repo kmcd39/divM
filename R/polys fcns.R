@@ -22,39 +22,38 @@ subset.polys.divs <- function(region, div.sf,
                               remove.NA.divs = T, ...) {
 
   # trim to region
-  div <- st_crop( div.sf
+  divs <- st_crop( div.sf
                   ,region )
 
   # End here if no hwy types excluded
-  if( is.null(div.identifier.column) ) return(div)
+  if( is.null(div.identifier.column) ) return(divs)
 
   # remove NAs if 'remove.NA.divs'
   if(remove.NA.divs)
-    div <- div %>% filter(! is.na(!!rlang::sym(div.identifier.column)) )
+    divs <- divs %>% filter(! is.na(!!rlang::sym(div.identifier.column)) )
 
   # trim to always included types
   if( !is.null(always.include) )
-    divP <- div %>%
+    divP <- divs %>%
       filter(!!rlang::sym(div.identifier.column)
              %in% always.include)
-  else divP <- div
+  else
+    divP <- divs
 
   # end here if finished
   if( is.null(include.intersecting) |
       !include.intersecting) return(divP)
 
   # Incl hwys that intersect otherwise ------------
-  rt <- div %>%
+  rt <- divs %>%
     filter(! (!!rlang::sym(div.identifier.column) %in% always.include) )
 
   touches.p <- st_filter(rt, divP)
 
-  if(nrow(touches.p) == 0)
-    out <- divP
-  else
-    out <- rbind(divP,touches.p)
+  if(nrow(touches.p) != 0)
+    divP <- rbind(divP,touches.p)
 
-  return(out)
+  return(divP)
 }
 
 
@@ -222,11 +221,10 @@ handle.overlaps <- function(x) {
 #' fill.single.gap
 #'
 #' Uses segment endpoints and connects those within threshold distance. Creates
-#' continuous line that I think is as appropriate as possible. First two arguments
+#' continuous line that I think is more appropriate. First two arguments
 #' are taken from call within fill.gaps.
 #' @param threshold Threshold in crs units. Fill gap if distance between endpoint of
 #'   given edge and another in \code{lines} is < this threshold.
-#' @param verbose Whether to print alert when a gap is filled.
 fill.single.gap <- function(edge, nodes, threshold = 200, ...) {
 
   # add meters to threshold
@@ -259,7 +257,7 @@ fill.single.gap <- function(edge, nodes, threshold = 200, ...) {
   }
 
   new.seg = abv_out(new.seg) %>%
-    rename(geometry= to.nn) %>% st_sf()
+    rename(geometry = to.nn) %>% st_sf()
 
   return(new.seg)
 }
@@ -296,8 +294,8 @@ fill.gaps <- function(hwy, return.gap.map = F, verbose = T, ...) {
     split(.$edge.id) %>%
     purrr::map(~fill.single.gap(., hwy.n, threshold = threshold), ...)
 
-  # return early if no gaps filled
-  if( all(map_lgl(fillers, ~(nrow(.) == 0))) )
+  # return early if no gaps are filled
+  if( all(purrr::map_lgl(fillers, ~(nrow(.) == 0))) )
     return(hwy)
 
   # alert user gap being filled if verbose
@@ -308,7 +306,7 @@ fill.gaps <- function(hwy, return.gap.map = F, verbose = T, ...) {
 
   # return map if appropriate
   if( return.gap.map )
-    return(mapview(hwy) + mapview(fillers, color = "red"))
+    return(mapview::mapview(hwy) + mapview::mapview(fillers, color = "red"))
 
   # join segments with gap-fillers
   continuous.hwy = st_union(hwy,
@@ -331,18 +329,19 @@ fill.gaps <- function(hwy, return.gap.map = F, verbose = T, ...) {
 #' functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
 #' @inheritParams fill.gaps
 #' @inheritDotParams fill.single.gap
+#' @import purrr
 #' @export
 Fix.all.hwys <- function(hwy, ...) {
 
   dn.hwy <- hwy %>%
     split(.$SIGN1) %>%
-    imap( ~denode.lines(.) )
+    purrr::imap( ~denode.lines(.) )
 
   hwy <- dn.hwy %>%
-    imap( ~fill.gaps(., return.gap.map = return.gap.map), ...)
+    purrr::imap( ~fill.gaps(., return.gap.map = return.gap.map), ...)
 
   if(return.gap.map)
-    return(hwy[map_lgl(hwy, ~("mapview" %in% class(.)))])
+    return(hwy[purrr::map_lgl(hwy, ~("mapview" %in% class(.)))])
 
   hwy <- do.call("rbind", hwy) %>%
     ez.explode()
@@ -386,123 +385,3 @@ Polys.wrapper <- function( region, div.sf, fill.gaps = F, ...) {
   return(out)
 }
 
-
-
-
-
-# troubleshooting ---------------------------------------------------------
-'
-tmpcz <- czs[grepl("Minneapolis" # "Corinth"
-                   , czs$region.name), ]
-
-#tmpcz <- czs[grepl( "Corinth"
-#                   , czs$region.name), ]
-
-
-mn.watr = Polys.wrapper(  region = tmpcz
-                          , div.sf = gsw
-                          , fill.gaps = F
-                          , div.identifier.column = NULL
-                          , always.inculude = NULL
-                          , include.intersecting = NULL
-                          , remove.NA.divs = F
-                          , negative.buffer = 100
-                          , min.size = 0
-                          , min.population.count = 1000
-                          , min.population.perc = NULL
-                          , return.sf = T)
-
-
-mn.watr %>% mapview(zcol="id") + mapview(st_crop(gsw,
-                                                 tmpcz),color = "#800030")
-
-st_crs(gsw) = st_crs(cts)
-nhpn <- nhpn %>% conic.transform()
-cts <- cts %>% conic.transform()
-czs <- czs %>% conic.transform()
-
-mn.int = Polys.wrapper(  region = tmpcz
-                         , div.sf = nhpn
-                         , fill.gaps = T
-                         , div.identifier.column = "SIGNT1"
-                         , always.include = "I"
-                         , include.intersecting = F
-                         , remove.NA.divs = T
-                         , negative.buffer = 100
-                         , min.size = 0
-                         , min.population.count = 1000
-                         , min.population.perc = NULL # very low so i can just keep all of them and look
-                         , return.sf = T)
-
-mn.int %>%
-  mapview(zcol="pop.perc") +
-  mapview(st_crop(filter(nhpn, SIGNT1=="I"),
-                  tmpcz),color = "#800030")
-
-
-mn.lac = Polys.wrapper(  region = tmpcz
-                         , div.sf = lac
-                         , fill.gaps = T
-                         , div.identifier.column = "SIGNT1"
-                         , always.include = NULL
-                         , include.intersecting = F
-                         , remove.NA.divs = T
-                         , negative.buffer = 100
-                         , min.size = 0
-                         , threshold = 500
-                         , min.population.count = 1000
-                         , return.sf = T)            # theres 1 5e-4 percent polygon with still 1,600 people.
-# Also a 1e-5 % poly with 35 people. So maybe should just trim by absolute value
-
-mn.lac %>%
-  mapview(zcol="pop.perc") +
-  mapview(st_crop(lac,
-                  tmpcz),color = "#800030"
-          ,lwd = 5)
-'
-
-
-'#  minneapolis rails
-rail.mn = Polys.wrapper(tmpcz,
-                        tmp
-                        , fill.gaps = F
-                        , div.identifier.column = "DIRECTION"
-                        , negative.buffer = 100
-                        , min.size = 5e5
-                        , min.population.count = 250
-                        , min.population.perc = NULL
-                        , return.sf = T)
-rail.mn %>% mapview(zcol = "population")
-mapview(tmp)
-cts %>%
-  filter(czname=="Minneapolis") %>%
-  mapview(zcol= "population" ) +
-  mapview(tmp, lwd =3 , color = "red")
-rail.mn
-'
-
-# this one got a topologyexception: cz 26801
-'
-Polys.wrapper(czs[czs$region.id == 26801, ],
-              bts.nona
-              , fill.gaps = F
-              , div.identifier.column = NULL
-              , negative.buffer = 100
-              , min.size = 5e5
-              , min.population.count = 250
-              , min.population.perc = NULL
-              , return.sf = T) #F
-
-'
-'
-boston.polys <- polygonal.div(   boston
-                                 ,tmp.divs
-                                 ,return.sf = T  )
-'
-'
-spf.polys <- polygonal.div(   spf
-                              ,tmp.divs
-                              ,return.sf = T
-                              ,min.size = NULL
-                              ,min.population.count = 50  )
-'

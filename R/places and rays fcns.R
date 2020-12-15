@@ -102,8 +102,7 @@ initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
   rt <- hwy %>% filter( !SIGNT1 %in% always.include )
 
   # check if they intersect
-  sgbp <- st_intersects(rt, hwy)
-  touches.core <- rt[ lengths(sgbp) > 0, ]
+  touches.core <- st_filter(rt, hwy)
 
   # add to prepped if any found
   if(nrow(touches.core) != 0)
@@ -163,7 +162,6 @@ trim.to.length.floors <- function(region, divisions,
 #' @inheritParams Count.rays
 #' @inheritDotParams trim.to.length.floors
 #' @inheritDotParams fill.gaps
-#' @param ...
 hwys2endpoints <- function(place, trimmed.hwys,
                            fill.gaps = T,
                            verbose = T, ...) {

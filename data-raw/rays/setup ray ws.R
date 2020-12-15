@@ -1,6 +1,5 @@
 library(sf)
 library(dplyr)
-library(purrr)
 library(mapview)
 library(lwgeom)
 rm(list=ls())

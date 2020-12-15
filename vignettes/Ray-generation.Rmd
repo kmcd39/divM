@@ -14,6 +14,78 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r setup}
+```{r setup, echo = FALSE}
+# devtools::install_github("https://github.com/kmcd39/divM.git")
+library(sf)
+library(dplyr)
 library(divM)
+source("../data-raw/rays/setup ray ws.R")
+```
+
+# Rays
+
+This package includes functions to generate "rays," stretches of highways that cross 
+a region boundary, with each high segment that begins outside of the region and exists 
+partially within the region area.
+
+## Data
+
+City centers are defined as the largest census-defined Place within a commuting zone.
+Hwys are identified using National Highway Planning Network (NHPN), available at:
+https://catalog.data.gov/dataset/national-highway-planning-network-nhpn
+
+The columns SIGNT1 and SIGN1 are used to respectively identify highway type (interstate, state route, etc.) 
+and unique highway (i.e., I76, US-3).
+
+## Measure Generation
+
+Rays are found by:
+1. Trimming the set of all hwy data to all hwys within and surrounding a Place area
+2. Possibly cleaning/subsetting data based on arguments. This can include:
+  + Selecting which hwy types and segments to include
+  + Filling holes inside of the Place area
+  + Trimming hwy segments based on their length inside the Place and/or filling small gaps between hwy segments
+  See the documentation for `?Count.rays` for all options.
+3. Rays are then counted by counting number of start-/end- points of all eligible hwys that begin outside the Place boundary.
+
+Rays can be generated most easily with the `Count.rays` function. This will count the number of rays and bundle a map illustrating them if `include.map` is true.
+
+### Counting Rays Examples
+
+```{r ray.illustrations}
+
+# rays in Philadelphia formed by Interstates, state routes, and US routes:
+phl = Count.rays(place.geoid = plc.ids[["Philadelphia"]],
+           hwys,
+           always.include = c("I","U","S")
+           )
+phl$n.rays
+phl$map
+
+# rays in Chicago formed by Interstates and all non-NA routes that intersect
+# interstates
+chi = Count.rays(place.geoid = plc.ids[["Chicago"]],
+           hwys,
+           always.include = c("I"),
+           include.intersecting = T
+           )
+chi$n.rays
+chi$map
+
+# Oklahoma City, with and without Place holes and Highway gaps getting filled
+okT = Count.rays(plc.ids["Oklahoma City"]
+           ,hwys
+           ,always.include = c("I", "U", "S")
+           ,remove.holes = T
+           ,fill.gaps = T)
+okT$n.rays
+okT$map
+
+okF = Count.rays(plc.ids["Oklahoma City"]
+           ,hwys
+           ,always.include = c("I", "U", "S")
+           ,remove.holes = F
+           ,fill.gaps = F , verbose = F)
+okF$n.rays
+okF$map
 ```
