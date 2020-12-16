@@ -60,13 +60,13 @@ which(lac.eligible=="00700")
 phl.polys <- Polys.wrapper(  region = czs[czs$region.name == "Philadelphia", ]
                              , div.sf = lac
                              , fill.gaps = T
-                             , div.ientifier.column = "SIGNT1"
+                             , div.idntifier.column = "SIGNT1"
                              , always.include = NULL
                              , include.intersecting = F
                              , remove.NA.divs = T
                              , negative.buffer = 100
                              , min.size = 5e5
-                             , min.population.count = 100
+                             , min.population.count = 1
                              , min.population.perc = NULL
                              , return.sf = T)
 

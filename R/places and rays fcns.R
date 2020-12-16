@@ -87,29 +87,33 @@ initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
   if(!is.null(hwy.types))
     hwy <- hwy %>% filter(SIGNT1 %in% hwy.types)
 
+  # denode / spatial clean
+  hwy <- denode.lines(hwy, group.cols = c("SIGNT1", "SIGN1"))
 
   # parse include.intersecting and others: ------------
 
   # core highway types
   if(!is.null(always.include))
-    hwy <- hwy %>% filter(SIGNT1 %in% always.include)
+    hwyP <- hwy %>% filter(SIGNT1 %in% always.include)
 
   # end if appropriate
   if(!include.intersecting)
-    return(hwy)
+    return(hwyP)
 
   # What is not already included?
   rt <- hwy %>% filter( !SIGNT1 %in% always.include )
 
   # check if they intersect
-  touches.core <- st_filter(rt, hwy)
+  touches.core <- st_filter(rt, hwyP)
 
   # add to prepped if any found
   if(nrow(touches.core) != 0)
-    hwy <- rbind(hwy, touches.core)
+    out <- rbind(hwyP, touches.core)
+  else
+    out <- hwyP
 
   # return ------------------------------------------------
-  return(hwy)
+  return(out)
 }
 
 
@@ -169,11 +173,11 @@ hwys2endpoints <- function(place, trimmed.hwys,
   if (nrow(hwys) == 0)
     return(NULL)
 
-  # denode / spatial clean
-  hwys <- denode.lines(trimmed.hwys)
+  # denode / spatial clean. cld be a redundant call but doesn't matter
+  hwys <- denode.lines(trimmed.hwys, group.cols = c("SIGNT1", "SIGN1"))
 
   if(fill.gaps)
-    hwys <- Fix.all.hwys(hwys, ...) # code for this is with polygon fcns
+    hwys <- Fix.all.hwys(hwys, ...) # code for this is with spatial clean fcns
 
   # filter to length by hwy/segment
   hwys <- trim.to.length.floors(place, hwys, ...)
