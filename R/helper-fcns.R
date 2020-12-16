@@ -5,7 +5,8 @@
 #'
 #' Transforms sf spatial data to a conic projection with distance in meters
 #' @export
-conic.transform <- function(stdf, crs = "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45") {
+conic.transform <- function(stdf,
+                            crs = "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45") {
   st_transform(stdf, crs)
 }
 
@@ -13,13 +14,16 @@ conic.transform <- function(stdf, crs = "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=4
 #' geod.length
 #'
 #' Returns more accurate length for linestrings on the earth's surface as vector.
+#' @importFrom lwgeom st_geod_length
 #' @export
-geod.length <- function(x) lwgeom::st_geod_length(sf::st_transform(x, 4326))
+geod.length <- function(x)
+  lwgeom::st_geod_length(sf::st_transform(x, 4326))
 
 #' ez.explode
 #'
 #' Drops units from any columns that have them and then calls
 #' rmapshaper::ms_explode(), which cannot handle units.
+#' @importFrom rmapshaper ms_explode
 #' @export
 ez.explode <- function(x) {
   x %>%
@@ -34,7 +38,8 @@ ez.explode <- function(x) {
 #' Creates a buffered convex hull around a polygon. Used to filter proximate
 #' highways given a place.
 #' @export
-buffered.hull <- function(x, buffer = 300) st_buffer(st_convex_hull(x), buffer)
+buffered.hull <- function(x, buffer = 300)
+  st_buffer(st_convex_hull(x), buffer)
 
 #' abv_out
 #'
@@ -51,7 +56,7 @@ abv_out <- function(sf_df) {
 #' count.geo
 #'
 #' Counts geometry types of sf object.
-#' @export
+#' @export count.geo
 count.geo <- function(x) {
   require(dplyr)
   require(sf)
@@ -70,8 +75,7 @@ count.geo <- function(x) {
 #' expected in a variety of places in code that I've been writing.
 #' @param df table to rename
 #' @param region.type A column in df containing region identifiers, with column
-#'   itself indicating level or type of region.
-#' @export region.reorg
+#'   itself indicating level or type of region.   #' not-exported region.reorg
 region.reorg <- function(df, region.type) {
 
   # rename region.ids
@@ -97,7 +101,6 @@ region.reorg <- function(df, region.type) {
 #'
 #' Attaches tract geometries and xwalk info to ct.pops. The reason for this function is to avoid
 #' bundling geometries with this package, as they take up a lot of space.
-#' @export
 attach.tract.geometry <- function(cts) {
 
   # add geometries
@@ -112,7 +115,3 @@ attach.tract.geometry <- function(cts) {
   return(out)
 }
 
-
-#' remove.water.areas
-#'
-#' Requires an active connection to a spatial database with a divs.

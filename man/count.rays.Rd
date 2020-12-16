@@ -7,17 +7,25 @@
 Count.rays(
   place.geoid,
   hwy.sf,
+  place.sf = divM::largest.plc.in.cz,
   remove.holes = FALSE,
-  place.sf = largest.plc.in.cz,
   ...
 )
 }
 \arguments{
+\item{place.geoid}{7-character identifier for place to generate rays for.}
+
 \item{remove.holes}{Remove holes from places before counting rays. If a hwy
 starts/ends in a hole, it will be counted as a ray unless this is set to TRUE}
 
-\item{always.include}{Type(s) of highways to always include for ray measure if
+\item{...}{
+  Arguments passed on to \code{\link[=initial.hwy2ray.subset]{initial.hwy2ray.subset}}, \code{\link[=Get.bundled.ray.output]{Get.bundled.ray.output}}
+  \describe{
+    \item{\code{always.include}}{Type(s) of highways to always include for ray measure if
 \code{include.intersecting} is false. By default only interstates}
+    \item{\code{trimmed.hwys}}{hwys prepped for supplied place, as with
+\code{initial.hwy2ray.subset}}
+  }}
 
 \item{include.intersecting}{Whether or not to include additional highway types if
 they intersect with one or more of the core/always included hwy types.}

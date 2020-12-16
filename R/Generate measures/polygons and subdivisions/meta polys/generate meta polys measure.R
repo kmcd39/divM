@@ -7,7 +7,7 @@ library(mapview)
 devtools::load_all()
 
 # get CZs -------------------------------------------------------------------
-czs <- divDat::czs %>% divM::re
+czs <- divDat::czs %>% divM::conic.transform()
 
 
 # load administrative boundaries -------------------------------------
@@ -44,8 +44,10 @@ plot(sample.admins['dtype'], lwd = 2, bg = "#444444")
 
 # get phys divisions (-water) --------------------------------------------------
 # (get divs from database)
-source(".auth/.auth.R") # credentials for db not sent to github
-con <- dblinkr::db.connect(db.usr, db.pw)
+con <- dblinkr::db.connect(
+  Sys.getenv("PRINCETON_LOGIN"),
+  Sys.getenv("PRINCETON_PW")
+)
 dblinkr::tbls.in.schema(con, "divs")
 
 hwys <- dblinkr::query.division(con, tmp.czs, "divs.hwys")
@@ -57,10 +59,11 @@ rails.nona = rails %>% filter(!is.na(DIRECTION))
 hwys <- divM::Fix.all.hwys(hwys, verbose = F)
 
 
-# put these into the same format as the administrative boundares.
-phys.divs <- list( "rails" = rails.nona
-                   ,"hwys" = hwys
-)
+# put these into the same format as the administrative boundaries.
+phys.divs <- list(
+  "rails" = rails.nona
+  ,"hwys" = hwys
+  )
 
 phys.divs <- phys.divs %>%
   imap( ~divFcns::conic.transform(.) )

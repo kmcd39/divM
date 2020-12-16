@@ -36,3 +36,11 @@ hwys <- hwys %>% divM::conic.transform()
 # plc <- filter(plc , STATEFP  == 42) %>% # (for test state)
 plc.ids <- plc$geoid
 names(plc.ids) <- plc$name
+
+
+# save WS ----------------------------------------------------------------------
+
+# .Rdata for portability -- relies on local NHPN data anyway
+save.image(
+  here::here("R/Generate measures/rays/ray ws.Rdata")
+  )

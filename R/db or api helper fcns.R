@@ -15,7 +15,6 @@
 #'   trimming
 #' @param trim.unnamed whether or not to retain unnamed water areas. These tend to be
 #'   very small and may introduce a lot of unneeded complexity to supplied region.
-#' @importFrom dblinkr query.division
 #' @export
 db.query.and.cutout.water <- function(con, region,
                                       sf.simplify = TRUE,
@@ -94,8 +93,9 @@ get.clean.tigris.water <- function(czs = NULL, counties = NULL,
                                         county = .y,
                                         ...))
 
-  # some idiosyncratic cases where a water feature is split up into many parts so it
-  # actually trims to all named features and those touching named features.
+  # some idiosyncratic cases where a water feature is split up into many parts, only
+  # some of which have names, so this trims to all named features and those
+  # touching named features.
   if(trim.unnamed) {
     named <- water[!is.na(water$FULLNAME),]
     sgbp <- st_intersects(water, named)
@@ -126,7 +126,6 @@ get.clean.tigris.water <- function(czs = NULL, counties = NULL,
 #'   https://wiki.openstreetmap.org/wiki/Map_Features
 #' @examples
 #' \dontrun{phr <- osm.query(divDat::czs[1,], "railway") }
-#' @import osmdata
 osm.query <- function(basesf, features) {
   require(sf)
 

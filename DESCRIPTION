@@ -23,7 +23,8 @@ Imports:
   purrr,
   rlang,
   rmapshaper,
-  sf
+  sf,
+  tigris
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

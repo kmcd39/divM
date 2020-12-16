@@ -20,8 +20,6 @@ identifier column}
 identifier, but which intersect with divs that do.}
     \item{\code{remove.NA.divs}}{Whether or not to remove all divisions with an NA in the
 identifier column.}
-    \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
-is run on it}
     \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}
     \item{\code{negative.buffer}}{Shrink region by this amount only for calculating polygons.
 Useful for handling shpfiles w/ different resolutions, especially for regions

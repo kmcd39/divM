@@ -10,7 +10,7 @@ region.reorg(df, region.type)
 \item{df}{table to rename}
 
 \item{region.type}{A column in df containing region identifiers, with column
-itself indicating level or type of region.}
+itself indicating level or type of region.   #' not-exported region.reorg}
 }
 \description{
 Turns columns with i.e., cz & cz_name to region.id/region.type format that is

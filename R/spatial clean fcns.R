@@ -1,17 +1,3 @@
-#' handle.overlaps
-#'
-#' This cuts out areas so all sub polygons are non-overlapping. Trims out
-#' overlaps from larger shapes, while leaving overlapping shape on its own.
-#' Relevant when a smaller polygon is 100% covered by larger one(s) and you want
-#' non-overlapping polygons.
-#' @export
-handle.overlaps <- function(x) {
-  # get polygons formed from overlaps
-  overlaps <- x %>% st_intersection() %>% filter(grepl("POLYGON", st_geometry_type(.$geometry)))
-
-  overlaps %>% select(-c(n.overlaps, origins))
-}
-
 
 
 #' absolute.validate
@@ -74,9 +60,13 @@ denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
 #' adopts workflow from https://www.r-spatial.org/r/2019/09/26/spatial-networks.html
 #' @export
 find.endpoint.nodes <- function(x, line.ids = c("SIGNT1", "SIGN1")) {
+
   # no endpoints if no lines
-  if(nrow(x) == 0) return(NULL)
-  if(!all(line.ids %in% colnames(x))) stop("missing id columns")
+  if(nrow(x) == 0)
+    return(NULL)
+  # ensure id columns in supplied sf
+  if(!all(line.ids %in% colnames(x)))
+    stop("missing id columns")
 
   # add id cols to linestrings
   x$id <- 1:nrow(x)
@@ -109,10 +99,10 @@ find.endpoint.nodes <- function(x, line.ids = c("SIGNT1", "SIGN1")) {
 
   # add hwy identifiers back to nodes
   line.ids <- x %>%
-    select(c("id", all_of(line.ids)))
+    select(c("id", tidyselect::all_of(line.ids)))
 
   stnodes <- left_join(stnodes,
-                       divFcns::abv_out(x)
+                       abv_out(x)
                        ,by = c("edge.id" = "id"))
   #st_join(stnodes, line.ids)
   return(stnodes)
@@ -126,14 +116,16 @@ find.endpoint.nodes <- function(x, line.ids = c("SIGNT1", "SIGN1")) {
 #' fill.single.gap
 #'
 #' Uses segment endpoints and connects those within threshold distance. Creates
-#' continuous line that I think is as appropriate as possible.
-#' @export
-fill.single.gap <- function(edge, nodes, threshold = 50, verbose = T, ...) {
+#' continuous line that I think is more appropriate. First two arguments
+#' are taken from call within fill.gaps.
+#' @param threshold Threshold in crs units. Fill gap if distance between endpoint of
+#'   given edge and another in \code{lines} is < this threshold.
+fill.single.gap <- function(edge, nodes, threshold = 200) {
 
   # add meters to threshold
   threshold = units::set_units(threshold, "m")
 
-  # for each edge, find nearest edge on other node
+  # for given edge, find nearest start/endpoint that is not a part of given edge
   eligible.nodes = nodes[!nodes$nodeID %in% edge$nodeID,]
   neasest.to.i.nodes = edge %>%
     st_nearest_feature(eligible.nodes)
@@ -158,81 +150,89 @@ fill.single.gap <- function(edge, nodes, threshold = 50, verbose = T, ...) {
     edge$geometry = NULL
     return(new.seg)
   }
-  #cat("addressed gaps at ", unique(edge$SIGN1), "\n")
 
   new.seg = abv_out(new.seg) %>%
-    rename(geometry= to.nn) %>% st_sf()
+    rename(geometry = to.nn) %>% st_sf()
 
   return(new.seg)
 }
 
-#' fill.hwy.gaps
+#' fill.gaps
 #'
-#' maps fill.single.gap across output of previous functions. Takes ~denoded~
-#' lines; expects nhpn hwy data.
-#' @export
-fill.gaps <- function(hwy, threshold = 200, return.gap.map = F, ...) {
+#' maps fill.single.gap across all subsections of a single hwy. Takes ~denoded~ lines;
+#' expects nhpn hwy data. The purpose is that if a highway has a short break
+#' (<threshold) in the middle, this allows the polygon measure to ignore a short break.
+#' Call with \code{return.gap.map=T} to visualize what it does.
+#' @param hwy a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+#'   is run on it
+#' @param return.gap.map Return mapview leaflet to visualize output of fcn
+#' @inheritDotParams fill.single.gap
+fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
   hwy.type <- unique(hwy$SIGNT1)
   hwy.id <- unique(hwy$SIGN1)
 
   # subset to non-loops
-  # (loops are very rare but problematic. Found one-- S213 in Boston. Use cat to locate others
+  # (loops are rare but problematic. One example -- S213 in Boston.
   delooped <- hwy[st_startpoint(hwy) != st_endpoint(hwy), ]
   if(nrow(delooped) != nrow(hwy)) cat("Loop found in", hwy.id)
 
-  # if no more than 1 non-loop segment, return HWYS early
+  # if no more than 1 non-loop segment, return early (no gaps to fill)
   if( nrow(delooped) <= 1 ) {
     out <- hwy %>% select(SIGN1, SIGNT1, geometry) %>% mutate(id = 1)
     return(out)
   }
-
-  cat("fixing",hwy.id,"\n")
 
   # to fill gaps, first get endpoints of existing segments
   hwy.n = find.endpoint.nodes(hwy)
 
   fillers = hwy.n %>%
     split(.$edge.id) %>%
-    purrr::map(~fill.single.gap(., hwy.n, threshold = threshold), ...)
+    purrr::map(~fill.single.gap(., hwy.n, threshold = threshold))
 
-  # return early if no gaps filled
-  if( all(map_lgl(fillers, ~(nrow(.) == 0))) )
+  # return early if no gaps are filled
+  if( all(purrr::map_lgl(fillers, ~(nrow(.) == 0))) )
     return(hwy)
+
+  # alert user gap being filled if verbose
+  # cat("filling gap in",hwy.id,"\n")
 
   fillers <- do.call("rbind", fillers)
 
   # return map if appropriate
   if( return.gap.map )
-    return(mapview(hwy) + mapview(fillers, color = "red"))
+    return(mapview::mapview(hwy) + mapview::mapview(fillers, color = "red"))
 
-  # join segments with gap-fillers
-  continuous.intst = st_union(hwy,
-                              fillers) %>%
+  # otherwise join segments with gap-fillers
+  continuous.hwy = st_union(hwy,
+                            fillers) %>%
     st_union() %>%
     st_line_merge() %>%
     st_sf(SIGNT1 = hwy.type
           ,SIGN1 = hwy.id
           ,geometry = .)
 
-  continuous.intst$id <- 1:nrow(continuous.intst)
-  return(continuous.intst)
+  continuous.hwy$id <- 1:nrow(continuous.hwy)
+  return(continuous.hwy)
 }
 
 
 
 #' Fix all hwys
 #'
-#' Fixes all hwys in place from raw data from subset of raw nhpn data. Applies
-#' \code{denode.lines} then \code{fill.gaps}; returns exploded clean NHPN hwy data.
+#' Fixes all hwys in place from raw data from subset of raw nhpn data. Note these
+#' functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
+#' @inheritParams fill.gaps
+#' @import purrr
 #' @export
-Fix.all.hwys <- function(hwy, return.gap.map = F, ...) {
+Fix.all.hwys <- function(hwys, threshold = 200, return.gap.map = F, ...) {
 
-  dn.hwy <- hwy %>%
+  dn.hwy <- hwys %>%
     split(.$SIGN1) %>%
     purrr::imap( ~denode.lines(.) )
 
   hwy <- dn.hwy %>%
-    purrr::imap( ~fill.gaps(., return.gap.map = return.gap.map), ...)
+    purrr::imap( ~fill.gaps(., threshold = threshold,
+                            return.gap.map = return.gap.map))
 
   if(return.gap.map)
     return(hwy[purrr::map_lgl(hwy, ~("mapview" %in% class(.)))])
@@ -242,3 +242,5 @@ Fix.all.hwys <- function(hwy, return.gap.map = F, ...) {
 
   return(hwy)
 }
+
+

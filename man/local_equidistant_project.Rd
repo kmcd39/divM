@@ -2,21 +2,26 @@
 % Please edit documentation in R/div proximity fcns.R
 \name{local_equidistant_project}
 \alias{local_equidistant_project}
-\title{this script provides functions for getting the proximity proportion and mean
-centroid dist-to-division measures. They provide functions both to get the
-measure for a particular region and to map them across all regions.}
+\title{this script provides functions for getting the proportion of the populations
+within x proximity of a division, and the mean distance to division for CT/CBG
+centroids; these were initial dividedness measures.}
 \usage{
 local_equidistant_project(x, projection_center = NULL)
 }
-\description{
-There's a set of functions for re-projecting spatial data based on its
-centroid. This can be used to use distance- or area-preserving map
-projections centered on local areas. This should only be necessary when a
-function that can only operate on planar geometries is needed.
-local_equidistant_project
+\arguments{
+\item{x}{sf to project}
+
+\item{projection_center}{to center projection around.}
 }
-\details{
+\description{
 Projects a shapefile to an Azimuth Equidistant Projection centered on a
 supplied centroid, or if \code{projection_center} is null, on a centroid
 automatically generated for the supplied sf object.
+}
+\details{
+There's also a set of functions for re-projecting spatial data based on its centroid.
+This can be used to use distance- or area-preserving map projections centered on
+local areas. This should only be necessary when a function that can only operate
+on planar geometries is needed.
+local_equidistant_project
 }

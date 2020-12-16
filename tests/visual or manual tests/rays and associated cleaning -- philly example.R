@@ -47,5 +47,20 @@ plc.ids
 
 Count.rays(plc.ids[["Philadelphia"]],
            hwys,
-           always.include = c("I","U","S")
+           always.include = c("I","U","S"),
+           verbose = F
            )
+
+
+phl.hwys = st_intersection(hwys,
+                           st_union(st_buffer(
+                             plc[plc$geoid == plc.ids[["Philadelphia"]],]
+                                              , 5000)))
+
+phl.hwys = phl.hwys %>% filter(SIGNT1 == "I")
+
+devtools::load_all()
+tmp = Fix.all.hwys(phl.hwys,
+             threshold = 150,
+             return.gap.map = T)
+tmp$I676

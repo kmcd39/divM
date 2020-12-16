@@ -1,19 +1,21 @@
-#' this script provides functions for getting the proximity proportion and mean
-#' centroid dist-to-division measures. They provide functions both to get the
-#' measure for a particular region and to map them across all regions.
+#' this script provides functions for getting the proportion of the populations
+#' within x proximity of a division, and the mean distance to division for CT/CBG
+#' centroids; these were initial dividedness measures.
 #'
-#' There's a set of functions for re-projecting spatial data based on its
-#' centroid. This can be used to use distance- or area-preserving map
-#' projections centered on local areas. This should only be necessary when a
-#' function that can only operate on planar geometries is needed.
+#' There's also a set of functions for re-projecting spatial data based on its centroid.
+#' This can be used to use distance- or area-preserving map projections centered on
+#' local areas. This should only be necessary when a function that can only operate
+#' on planar geometries is needed.
 
 
 
 #' local_equidistant_project
 #'
-#' Projects a shapefile to an Azimuth Equidistant Projection centered on a
+#' @description Projects a shapefile to an Azimuth Equidistant Projection centered on a
 #' supplied centroid, or if \code{projection_center} is null, on a centroid
 #' automatically generated for the supplied sf object.
+#' @param x sf to project
+#' @param projection_center to center projection around.
 #' @export
 local_equidistant_project <- function(x, projection_center = NULL) {
   x <- st_sf(x)
@@ -48,7 +50,7 @@ get_azimuthal_projection_centroid <- function(x) {
 
 #' proximity_div_proportion
 #'
-#' Calculates the proportion of a population in a study area k meters from division.
+#' @description Calculates the proportion of a population in a study area k meters from division.
 #' pop_col specifies the colname for column in \code{centroid_df} that contains CT populations
 #' #' @export
 proximity_div_proportion <- function(centroid_df, div_df, identifier_column, k = 400, pop_col = "population", verbose = FALSE) {

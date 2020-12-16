@@ -1,9 +1,17 @@
+# slurm files
+_rslurm*
+
 # History files
 .Rhistory
 .Rapp.history
 
 # Session Data files
 .RData
+*.RData
+
+# and .rds (intermediate save)
+*.rds
+*.RDS
 
 # User-specific files
 .Ruserdata
@@ -24,6 +32,10 @@
 vignettes/*.html
 vignettes/*.pdf
 
+# other markdowns
+*.html
+*.pdf
+
 # OAuth2 token, see https://github.com/hadley/httr/releases/tag/v0.3
 .httr-oauth
 
@@ -39,16 +51,23 @@ vignettes/*.pdf
 .Renviron
 .Rproj.user
 
-
-# added to template
-
-# other knitted markdowns & materials
-*.html
-*.png
-
-# intermediate saves in generating measures
-.output/
+# ignore .csvs (but keep codebooks/documentation, which are gen .txt)
+*.csv
+*.csv.gz
 
 # any R script prefixed with '.' character
 .*.R
-inst/doc
+
+# .scratch folders
+.scratch/
+.older/
+
+# notes and other..
+*.docx
+*.tmp
+
+
+# files that may be created with shiny or RPubs
+*.dcf
+rsconnect/
+

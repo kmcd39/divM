@@ -8,7 +8,7 @@
 #' with dtype and admin aguments. Drops other pre-existing columns
 #' @param sf sf object
 #' @param divtype,admin additional identifiers to be bundled with the dissolved sf.
-#' @export
+#' @export dissolve.to.boundaries.w.ID
 dissolve.to.boundaries.w.ID <- function(sf, divtype, admin) {
   sf <- st_combine(sf)
   sf <- st_boundary(sf)

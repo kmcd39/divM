@@ -25,7 +25,7 @@ intpl <- st_transform(hwyplan
 library(lwgeom)
 sum(!st_is_valid(intpl))
 intpl <- st_set_precision(intpl, 1000)
-intpl <- st_make_valid(intpl) 
+intpl <- st_make_valid(intpl)
 st_write(hpc2, "~/R/shapefiles/1947plan/addl cleans 2/cleaner-hwy-plan.shp")'
 
 # associate with place geoids ---------------------------------------------
@@ -65,14 +65,14 @@ plan.rays$Chicago
 
 intpl %>%
   st_crop(st_bbox(plc[grepl("San Diego",plc$NAME), ])) %>%
-  mapview(zcol = "id") + 
+  mapview(zcol = "id") +
   mapview(plc[grepl("San Diego",plc$NAME), ], color = "red")
 
 
 # pull baum-snow's measures -----------------------------------------------
 # baum-snow's plan rays
 bspr =foreign::read.dta(paste0("~/R/all sharkey geoseg work/examining others replication data/political consequences of spatial policies/data/snow/data/",
-                               "rays_plan.dta")) 
+                               "rays_plan.dta"))
 
 head(bspr)
 
@@ -112,8 +112,7 @@ mapview(hwyplan$geometry) +
           , alpha.regions = .1, lwd =2.5)
 
 
-# scrach ------------------------------------------------------------------
-
+# scratch ------------------------------------------------------------------
 
 
 count.rays(3673000, plc, intpl
@@ -121,7 +120,7 @@ count.rays(3673000, plc, intpl
            ,min.segment.length = 300
            ,include.map = T
            , filter.colinear.node.threshold = 100)
-t
+
 
 clean.plan_all.intst.single.place(syra.int, threshold = units::set_units(2900, "m"))
 syra.int
@@ -139,18 +138,18 @@ plan.rays$`New York`
 # overlay points:
 county.hwy <- st_read("~/R/all sharkey geoseg work/examining others replication data/political consequences of spatial policies/data/hwyassn/joins/hwysegpointswcounties.shp")
 # drop columns from Nall merging with counties
-plan.raw <- county.hwy %>% 
+plan.raw <- county.hwy %>%
   select(1:13) %>% conic.transform()
 rm(county.hwy)
 
 
 overlay.raw.plan <- function(plc.geoid, base = plan.rays, raw=plan.raw) {
   basemap = base[]
-  
-  
+
+
 }
 plan.rays["New York"]
-plan.rays$`New York`$map + 
+plan.rays$`New York`$map +
   mapview(st_intersection(plan.raw, plc[plc$GEOID==plc.ids["New York"],]))
 
 
@@ -166,7 +165,7 @@ initial.hwy.subset(plc[plc$GEOID==plc.ids["Roanoke"],]
                    , intpl )
 
 
-'count.rays("0455000", 
+'count.rays("0455000",
            plc, intpl
            ,always.include = "plan"
            ,min.segment.length = 300
@@ -189,7 +188,7 @@ count.rays(plc.ids["New York"]
            ,include.map = T)
 
 options(future.globals.maxSize= 891289600)
-# only interstates 
+# only interstates
 rays <-
   furrr::future_imap( plc.ids,
                       ~ count.rays(., plc, hwys
