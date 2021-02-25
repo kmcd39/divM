@@ -20,11 +20,13 @@ are removed due to issue described above.}
   \describe{
     \item{\code{minimum.segment.length}}{Minimum length (meters) that each highway ~segment~
 must have in order to be eligible for rays, This differs from
-\code{minimum.hwy.length} in that it counts each separate}
+\code{minimum.hwy.length} in that it filters by each separate segment, rather
+than overall hwy length}
     \item{\code{minimum.hwy.length}}{Minimum length of each ~highway~ that must be inside
-place boundaries for it to be ray-eligible. Differs from minimum.segment.length
-in that at least one segment of hwy must meet this threshold for ~any~ of the
-segments to be eligible. Only relevant if larger than minimum.segment.length and}
+place boundaries for it to be ray-eligible. Differs from
+\code{minimum.segment.length} in that at least one segment of hwy must meet this
+threshold for ~any~ of the segments to be eligible. Only relevant if larger than
+\code{minimum.segment.length}.}
     \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
 is run on it}
     \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}

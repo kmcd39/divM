@@ -15,12 +15,31 @@ Count.rays(
 \arguments{
 \item{place.geoid}{7-character identifier for place to generate rays for.}
 
+\item{hwy.sf}{Sf object that represents highways with NHPN \code{SIGNT1} & \code{SIGN1}
+columns}
+
+\item{place.sf}{Sf object with \code{geoid} column to subset to.}
+
 \item{remove.holes}{Remove holes from places before counting rays. If a hwy
 starts/ends in a hole, it will be counted as a ray unless this is set to TRUE}
 
 \item{...}{
-  Arguments passed on to \code{\link[=initial.hwy2ray.subset]{initial.hwy2ray.subset}}, \code{\link[=Get.bundled.ray.output]{Get.bundled.ray.output}}
+  Arguments passed on to \code{\link[=trim.to.length.floors]{trim.to.length.floors}}, \code{\link[=hwys2endpoints]{hwys2endpoints}}, \code{\link[=initial.hwy2ray.subset]{initial.hwy2ray.subset}}, \code{\link[=Get.bundled.ray.output]{Get.bundled.ray.output}}
   \describe{
+    \item{\code{minimum.segment.length}}{Minimum length (meters) that each highway ~segment~
+must have in order to be eligible for rays, This differs from
+\code{minimum.hwy.length} in that it filters by each separate segment, rather
+than overall hwy length}
+    \item{\code{minimum.hwy.length}}{Minimum length of each ~highway~ that must be inside
+place boundaries for it to be ray-eligible. Differs from
+\code{minimum.segment.length} in that at least one segment of hwy must meet this
+threshold for ~any~ of the segments to be eligible. Only relevant if larger than
+\code{minimum.segment.length}.}
+    \item{\code{fill.gaps}}{whether or not to fill gaps between highway segments. Argument
+\code{threshold} can also be supplied specify maximum gap distance to fill gap
+btwn.}
+    \item{\code{place}}{Single polygon, likely representing a Place, for which to generate
+rays.}
     \item{\code{always.include}}{Type(s) of highways to always include for ray measure if
 \code{include.intersecting} is false. By default only interstates}
     \item{\code{include.intersecting}}{Whether or not to include additional highway types if
@@ -36,19 +55,6 @@ highways to place and surrounding area. Defaults to 300 meters.}
     \item{\code{trimmed.hwys}}{hwys prepped for supplied place, as with
 \code{initial.hwy2ray.subset}}
   }}
-
-\item{minimum.segment.length}{Minimum length (meters) that each highway ~segment~
-must have in order to be eligible for rays, This differs from
-\code{minimum.hwy.length} in that it counts each separate}
-
-\item{minimum.hwy.length}{Minimum length of each ~highway~ that must be inside
-place boundaries for it to be ray-eligible. Differs from minimum.segment.length
-in that at least one segment of hwy must meet this threshold for ~any~ of the
-segments to be eligible. Only relevant if larger than minimum.segment.length and}
-
-\item{fill.gaps}{whether or not to fill gaps between highway segments. Argument
-\code{threshold} can also be supplied specify maximum gap distance to fill gap
-btwn.}
 
 \item{verbose}{Display additional text output in console. Makes explicit some
 parameters that are passed to wrapped fcns and will say where ineligible rays

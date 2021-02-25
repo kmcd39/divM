@@ -14,24 +14,19 @@
 #' arguments can also be passed to mapview::mapview to change appearance of output
 #' map.
 #' @param place.geoid 7-character identifier for place to generate rays for.
-#'
-#' @param minimum.segment.length Minimum length (meters) that each highway ~segment~
-#'   must have in order to be eligible for rays, This differs from
-#'   \code{minimum.hwy.length} in that it counts each separate
-#' @param minimum.hwy.length Minimum length of each ~highway~ that must be inside
-#'   place boundaries for it to be ray-eligible. Differs from minimum.segment.length
-#'   in that at least one segment of hwy must meet this threshold for ~any~ of the
-#'   segments to be eligible. Only relevant if larger than minimum.segment.length and
-#' @param fill.gaps whether or not to fill gaps between highway segments. Argument
-#'   \code{threshold} can also be supplied specify maximum gap distance to fill gap
-#'   btwn.
+#' @inheritParams initial.hwy2ray.subset
+#' @param place.sf Sf object with `geoid` column to subset to.
 #' @param remove.holes Remove holes from places before counting rays. If a hwy
 #'   starts/ends in a hole, it will be counted as a ray unless this is set to TRUE
 #' @param verbose Display additional text output in console. Makes explicit some
 #'   parameters that are passed to wrapped fcns and will say where ineligible rays
 #'   are removed due to issue described above.
+#'
+#' @inheritDotParams trim.to.length.floors
+#' @inheritDotParams hwys2endpoints
 #' @inheritDotParams initial.hwy2ray.subset
 #' @inheritDotParams Get.bundled.ray.output
+#'
 #' @importFrom nngeo st_remove_holes
 #' @export Count.rays
 Count.rays <- function(place.geoid,
@@ -60,7 +55,10 @@ Count.rays <- function(place.geoid,
 #'
 #' Sets up road objects for ray measures. Ensures uniform CRS, trims hwys to those
 #' surrounding the Place, and parses arguments around which hwys to include.
-#' @param place
+#' @param place Single polygon, likely representing a Place, for which to generate
+#'   rays.
+#' @param hwy.sf Sf object that represents highways with NHPN `SIGNT1` & `SIGN1`
+#'   columns
 #' @param always.include Type(s) of highways to always include for ray measure if
 #'   \code{include.intersecting} is false. By default only interstates
 #' @param include.intersecting Whether or not to include additional highway types if
@@ -134,7 +132,15 @@ initial.hwy2ray.subset <- function(place, hwy.sf,
 #'
 #' Trims a set of highways to those for which the whole stretch of highway inside the
 #' region has minimum length \code{length.floor} in meters. 1 km by default.
-#' @inheritParams Count.rays
+#' @param minimum.segment.length Minimum length (meters) that each highway ~segment~
+#'   must have in order to be eligible for rays, This differs from
+#'   `minimum.hwy.length` in that it filters by each separate segment, rather
+#'   than overall hwy length
+#' @param minimum.hwy.length Minimum length of each ~highway~ that must be inside
+#'   place boundaries for it to be ray-eligible. Differs from
+#'   `minimum.segment.length` in that at least one segment of hwy must meet this
+#'   threshold for ~any~ of the segments to be eligible. Only relevant if larger than
+#'   `minimum.segment.length`.
 trim.to.length.floors <- function(region, divisions,
                                  minimum.segment.length = 10,
                                  minimum.hwy.length = 1000, ...) {
@@ -174,6 +180,9 @@ trim.to.length.floors <- function(region, divisions,
 #' generates ray-constituting nodes. Can filter out very small segments; by
 #' default removes those w/ less than .5km in place boundary
 #' @inheritParams Count.rays
+#' @param fill.gaps whether or not to fill gaps between highway segments. Argument
+#'   \code{threshold} can also be supplied specify maximum gap distance to fill gap
+#'   btwn.
 #' @inheritDotParams trim.to.length.floors
 #' @inheritDotParams fill.gaps
 hwys2endpoints <- function(place, trimmed.hwys,
@@ -183,7 +192,7 @@ hwys2endpoints <- function(place, trimmed.hwys,
   if (nrow(hwys) == 0)
     return(NULL)
 
-  # denode / spatial clean. kinda a redundant call but i really hate those extra nodes
+  # denode / spatial clean. kinda a redundant call but, really hate those extra nodes
   hwys <- denode.lines(trimmed.hwys, group.cols = c("SIGNT1", "SIGN1"))
 
   if(fill.gaps)

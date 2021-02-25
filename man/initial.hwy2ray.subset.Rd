@@ -16,6 +16,12 @@ initial.hwy2ray.subset(
 )
 }
 \arguments{
+\item{place}{Single polygon, likely representing a Place, for which to generate
+rays.}
+
+\item{hwy.sf}{Sf object that represents highways with NHPN \code{SIGNT1} & \code{SIGN1}
+columns}
+
 \item{always.include}{Type(s) of highways to always include for ray measure if
 \code{include.intersecting} is false. By default only interstates}
 
