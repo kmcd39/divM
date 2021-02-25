@@ -2,7 +2,31 @@
 library(sf)
 library(tidyverse)
 devtools::load_all()
-source(here::here("R/Generate measures/rays/setup ray ws.R"))
+# source(here::here("R/Generate measures/rays/setup ray ws.R"))
+load(here::here("R/Generate measures/rays/ray ws.Rdata"))
+
+
+
+# test run ---------------------------------------------------------------------
+Count.rays(plc.ids["Providence"],
+           hwys
+           ,plc
+           ,min.segment.length = 10
+           ,include.map = T
+           ,verbose = T)
+
+
+# elligiple places -------------------------------------------------------------
+
+sbgp <- st_intersects(plc, filter(hwys, SIGNT1 == "I"))
+int.eligible <- plc$geoid[lengths(sbgp) > 0]
+
+sbgp <- st_intersects(plc, lac)
+lac.eligible <- plc$geoid[lengths(sbgp) > 0]
+
+# rejoin to names
+int.eligible <- plc.ids[plc.ids %in% int.eligible]
+lac.eligible <- plc.ids[plc.ids %in% lac.eligible]
 
 # generate rays -----------------------------------------------------------
 #plc <- plc %>% filter(STATEFP  == 42) # (for test state)
@@ -10,8 +34,9 @@ source(here::here("R/Generate measures/rays/setup ray ws.R"))
 options(future.globals.maxSize= 891289600)
 # only interstates
 rays <-
-  furrr::future_imap( plc.ids,
-                      ~ count.rays(., plc, hwys
+  furrr::future_imap( int.eligible[1:3],
+                      ~ Count.rays(.,
+                                   hwys, plc,
                                    ,min.segment.length = 10
                                    ,ray.node.distance.threshold= 100
                                    ,include.map = FALSE

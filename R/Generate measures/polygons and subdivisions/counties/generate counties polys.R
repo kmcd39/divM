@@ -15,7 +15,9 @@ county_polys <- co2cz %>%
   rename(county_polys = n)
 
 # that's all
-write.csv(county_polys, "data-raw/polygons and subdivisions/.output/county_polys.csv")
+
+write.csv(county_polys,
+          "dividedness-measures/county-polys.csv")
 
 
 # to visualize ----------------

@@ -27,6 +27,9 @@ the core, "always.included" type(s). Only relevant if
 \code{include.intersecting} is true. No filter applied if left as NULL
 (default).}
 
+\item{drop.NA}{Whether to drop rows with NA in the \code{SIGNT} hwy-type identifier
+column.}
+
 \item{buffer.meters}{Amount of padding around the Place to retain when trimming
 highways to place and surrounding area. Defaults to 300 meters.}
 }

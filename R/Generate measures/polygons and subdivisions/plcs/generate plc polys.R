@@ -33,9 +33,9 @@ nrow(plc.polys)
 plc.polys
 
 
-
 # write ------------------------------------------------------------------------
-write.csv(plc.polys, "data-raw/polygons and subdivisions/.output/place_polys.csv")
+write.csv(plc.polys,
+          "dividedness-measures/place-polys.csv")
 
 
 # to map sample area:

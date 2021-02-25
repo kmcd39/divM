@@ -38,29 +38,34 @@ sds.polys[ duplicated(sds.polys$sd), ]
 # remove <x% of SD-in-CZ. I.e., if it's split but >(1-x)% falls in one CZ, count
 # that SD only w/in that CZ.
 sds.polysC = sds.polys %>%
-  filter(perc.area > .05) 
+  filter(perc.area > .05)
 
 sum(!sds$GEOID %in% sds.polysC$sd) # lost 0 sds
 
 # count school district (segments) by CZ
-sds.polys <- sds.polysC %>%
-  tibble() %>% count(cz) %>%
+sds.polys <-
+  tibble(sds.polysC) %>%
+  count(cz) %>%
   rename(school.dist_polys = n)
+
 sds.polys
 
-# write output
-write.csv(sds.polys, ".polys output/schooldist_polys.csv")
+
+# write output -----------------------------------------------------------------
+
+write.csv(sds.polys,
+          "dividedness-measures/by CZ/schooldist-polys.csv")
 
 
 # to map ------------------------------------------------------------------
 
-tmpczs <- czs %>% 
-  left_join(xwalks::co2cz) %>% 
-  filter(state == "MA") %>% 
+tmpczs <- czs %>%
+  left_join(xwalks::co2cz) %>%
+  filter(state == "MA") %>%
   select(-countyfp) %>%
   distinct()
 
-to.map <- xwalks::get.spatial.overlap( sds[sds$STATEFP==25, ] 
+to.map <- xwalks::get.spatial.overlap( sds[sds$STATEFP==25, ]
                                        , tmpczs
                                        , "GEOID", "cz"
                                        , filter.threshold = .05) %>%
@@ -90,7 +95,7 @@ ggplot() +
   geom_sf(data= sds.polys, aes(fill=cz),color="white") +
   theme_void()
 
-co2cz %>% 
+co2cz %>%
   rename(cz = cz_1990) %>%
   left_join(counties
             ,by = c("fips_county" = "geoid")) %>%

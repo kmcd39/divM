@@ -10,8 +10,12 @@ rm(list=ls())
 czs <- divDat::czs
 czs <- czs %>% rename(region.id = 1, region.name = 2) %>% mutate(region.type = "cz")
 
-source("data-raw/.auth/.auth.R")
-con <- dblinkr::db.connect(db.usr, db.pw)
+
+con <-
+  dblinkr::db.connect(
+    Sys.getenv("PRINCETON_LOGIN"),
+    Sys.getenv("PRINCETON_PW")
+    )
 dblinkr::tbls.in.schema(con, "divs")
 bts <- dblinkr::q_db2sf(con, "divs.rails_bts")
 st_crs(bts) = 4326
@@ -22,7 +26,6 @@ bts.nona <- bts %>% filter(!is.na(DIRECTION))
 bts.nona
 
 # spot checks -------------------------------------------------------------
-
 tmpcz = czs[czs$region.name == "Minneapolis", ]
 
 tmp.divs = st_intersection(bts,
@@ -48,7 +51,7 @@ rail.mn.nona = Polys.wrapper(tmpcz,
                         , min.population.perc = NULL
                         , return.sf = T)
 rail.mn
-'
+
 
 # get elligible areas -----------------------------------------------------
 sbgp <- st_intersects(czs, bts.nona)
@@ -56,8 +59,8 @@ rr.eligible <- czs$region.id[lengths(sbgp) > 0]
 
 
 # map thru and generate ---------------------------------------------------
-'
-rail.polys =
+
+rail.polys <-
   map_dfr( rr.eligible,
            ~Polys.wrapper(czs[czs$region.id == ., ]
                           , bts.nona
@@ -71,7 +74,7 @@ rail.polys =
   )
 
 
-write.csv(rail.polys, ".polys output/rail_polys_bts.csv")
+write.csv(rail.polys, "dividedness-measures/rail_polys_bts.csv")
 '
 
 # ending w some maps ------------------------------------------------------

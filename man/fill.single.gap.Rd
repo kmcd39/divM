@@ -4,7 +4,7 @@
 \alias{fill.single.gap}
 \title{fill.single.gap}
 \usage{
-fill.single.gap(edge, nodes, threshold = 200)
+\method{fill}{single.gap}(edge, nodes, threshold = 200)
 }
 \arguments{
 \item{threshold}{Threshold in crs units. Fill gap if distance between endpoint of

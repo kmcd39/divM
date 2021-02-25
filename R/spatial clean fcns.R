@@ -25,8 +25,10 @@ absolute.validate <- function(x) {
 #' of function is: Union -> merge -> explode -> add ids.
 #' @export
 denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
+
   if (nrow(x) == 0) return(x)
 
+  # union/merge -- dissolve all differences except due to grouping colms
   if(!is.null(group.cols))
     grpd.x <- x %>%
       group_by_at(vars(all_of(group.cols))) %>%
@@ -34,9 +36,12 @@ denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
   else
     grpd.x <- x %>% st_union() %>% st_sf()
 
-  xploded.x <- x %>%
-    ez.explode()
 
+  xploded.x <- x %>%
+    st_cast("LINESTRING")
+
+  # sometimes add'l linemerging requied (i forget exactly logic, but remember there
+  # was a weird case to catch; should've documented better then)
   if (nrow(grpd.x) == nrow(xploded.x)) {
     x$id = 1:nrow(x)
     return(x)
@@ -45,7 +50,8 @@ denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
     ungroup() %>%
     st_cast("MULTILINESTRING") %>%
     st_line_merge() %>%
-    ez.explode() %>%
+    st_collection_extract("LINESTRING") %>%
+    st_cast("LINESTRING") %>%
     mutate(id = row_number())
 }
 
@@ -168,6 +174,9 @@ fill.single.gap <- function(edge, nodes, threshold = 200) {
 #' @param return.gap.map Return mapview leaflet to visualize output of fcn
 #' @inheritDotParams fill.single.gap
 fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
+
+  require(lwgeom)
+
   hwy.type <- unique(hwy$SIGNT1)
   hwy.id <- unique(hwy$SIGN1)
 
@@ -216,7 +225,6 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
 }
 
 
-
 #' Fix all hwys
 #'
 #' Fixes all hwys in place from raw data from subset of raw nhpn data. Note these
@@ -237,8 +245,10 @@ Fix.all.hwys <- function(hwys, threshold = 200, return.gap.map = F, ...) {
   if(return.gap.map)
     return(hwy[purrr::map_lgl(hwy, ~("mapview" %in% class(.)))])
 
+  # explode to linestring
   hwy <- do.call("rbind", hwy) %>%
-    ez.explode()
+    st_collection_extract("LINESTRING") %>%
+    st_cast("LINESTRING")
 
   return(hwy)
 }

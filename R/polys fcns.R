@@ -91,6 +91,7 @@ polygonal.div <- function(  region, divs
                             , min.population.count = NULL
                             , min.population.perc = NULL
                             , verbose = F, return.sf = F, ...) {
+
   require(lwgeom)
   region.type = unique(region$region.type)
   region.id = unique(region$region.id)
@@ -111,7 +112,8 @@ polygonal.div <- function(  region, divs
                        , -negative.buffer)
              , divs)$geometry
 
-  polys <- rmapshaper::ms_explode(polys)
+  # explode from GEOCOLLECTION/MULTIPOLYGON
+  polys <- polys %>% st_collection_extract("POLYGON") %>% st_cast("POLYGON")
   polys <- st_make_valid(polys) %>% st_sf()
   polys <- handle.overlaps(polys)
 

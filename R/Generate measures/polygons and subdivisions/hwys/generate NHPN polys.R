@@ -5,7 +5,7 @@ library(dplyr)
 library(purrr)
 library(mapview)
 library(lwgeom)
-devtools::load_all(export_all = F)
+devtools::load_all()
 
 # get czs
 czs <- divDat::czs %>% divM::region.reorg("cz")
@@ -50,8 +50,6 @@ lac.eligible <- czs$region.id[lengths(sbgp) > 0]
 
 # map thru & generate measures --------------------------------------------
 
-
-
 # limited-access, gaps filled
 lac.polys <- map_dfr(lac.eligible
                      , ~Polys.wrapper(czs[czs$region.id == ., ]
@@ -60,11 +58,17 @@ lac.polys <- map_dfr(lac.eligible
 
 
 # just interstates, gaps filled
-int.polys <- map_dfr(hwy.eligible
+int.polys <- map_dfr(int.eligible
                      , ~Polys.wrapper(czs[czs$region.id == ., ]
                                       , hwys
                                       , always.include = c("I")))
 
-write.csv(lac.polys, "intermediate saves/polys/lac-gapfilled v2.csv" )
 
-write.csv(int.polys, "intermediate saves/polys/interstates-gapfilled v2.csv" )
+# write ------------------------------------------------------------------------
+
+
+write.csv(lac.polys,
+          "dividedness-measures/lac-gapfilled-hwy-polys.csv" )
+
+write.csv(int.polys,
+          "dividedness-measures/interstates-gapfilled-hwy-polys.csv" )

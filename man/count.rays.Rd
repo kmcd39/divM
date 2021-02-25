@@ -23,20 +23,19 @@ starts/ends in a hole, it will be counted as a ray unless this is set to TRUE}
   \describe{
     \item{\code{always.include}}{Type(s) of highways to always include for ray measure if
 \code{include.intersecting} is false. By default only interstates}
-    \item{\code{trimmed.hwys}}{hwys prepped for supplied place, as with
-\code{initial.hwy2ray.subset}}
-  }}
-
-\item{include.intersecting}{Whether or not to include additional highway types if
+    \item{\code{include.intersecting}}{Whether or not to include additional highway types if
 they intersect with one or more of the core/always included hwy types.}
-
-\item{hwy.types}{Other types of hwys to include if and only if they intersect with
+    \item{\code{hwy.types}}{Other types of hwys to include if and only if they intersect with
 the core, "always.included" type(s). Only relevant if
 \code{include.intersecting} is true. No filter applied if left as NULL
 (default).}
-
-\item{buffer.meters}{Amount of padding around the Place to retain when trimming
+    \item{\code{drop.NA}}{Whether to drop rows with NA in the \code{SIGNT} hwy-type identifier
+column.}
+    \item{\code{buffer.meters}}{Amount of padding around the Place to retain when trimming
 highways to place and surrounding area. Defaults to 300 meters.}
+    \item{\code{trimmed.hwys}}{hwys prepped for supplied place, as with
+\code{initial.hwy2ray.subset}}
+  }}
 
 \item{minimum.segment.length}{Minimum length (meters) that each highway ~segment~
 must have in order to be eligible for rays, This differs from

@@ -6,7 +6,6 @@
 # called directly to generate.
 
 
-
 #' Count.rays
 #'
 #' given the geoid of a place and sf objects containing hwy information and place
@@ -15,14 +14,7 @@
 #' arguments can also be passed to mapview::mapview to change appearance of output
 #' map.
 #' @param place.geoid 7-character identifier for place to generate rays for.
-#' @param include.intersecting Whether or not to include additional highway types if
-#'   they intersect with one or more of the core/always included hwy types.
-#' @param hwy.types Other types of hwys to include if and only if they intersect with
-#'   the core, "always.included" type(s). Only relevant if
-#'   \code{include.intersecting} is true. No filter applied if left as NULL
-#'   (default).
-#' @param buffer.meters Amount of padding around the Place to retain when trimming
-#'   highways to place and surrounding area. Defaults to 300 meters.
+#'
 #' @param minimum.segment.length Minimum length (meters) that each highway ~segment~
 #'   must have in order to be eligible for rays, This differs from
 #'   \code{minimum.hwy.length} in that it counts each separate
@@ -68,15 +60,27 @@ Count.rays <- function(place.geoid,
 #'
 #' Sets up road objects for ray measures. Ensures uniform CRS, trims hwys to those
 #' surrounding the Place, and parses arguments around which hwys to include.
+#' @param place
 #' @param always.include Type(s) of highways to always include for ray measure if
 #'   \code{include.intersecting} is false. By default only interstates
-#' @inheritParams Count.rays
+#' @param include.intersecting Whether or not to include additional highway types if
+#'   they intersect with one or more of the core/always included hwy types.
+#' @param hwy.types Other types of hwys to include if and only if they intersect with
+#'   the core, "always.included" type(s). Only relevant if
+#'   \code{include.intersecting} is true. No filter applied if left as NULL
+#'   (default).
+#' @param drop.NA Whether to drop rows with NA in the `SIGNT` hwy-type identifier
+#'   column.
+#' @param buffer.meters Amount of padding around the Place to retain when trimming
+#'   highways to place and surrounding area. Defaults to 300 meters.
 #' @export initial.hwy2ray.subset
-initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
+initial.hwy2ray.subset <- function(place, hwy.sf,
+                                   always.include = c("I"),
                                    include.intersecting = FALSE,
                                    hwy.types = NULL,
                                    drop.NA = TRUE,
                                    buffer.meters = 300, ...) {
+
 
   # ensure common crs
   hwy <- hwy.sf %>% st_transform(st_crs(place))
@@ -110,6 +114,9 @@ initial.hwy2ray.subset <- function(place, hwy.sf, always.include = c("I"),
 
   # check if they intersect
   touches.core <- st_filter(rt, hwyP)
+
+  # get routes that "touch core"
+  touches.core <- rt %>% filter(SIGN1 %in% touches.core$SIGN1)
 
   # add to prepped if any found
   if(nrow(touches.core) != 0)
@@ -176,7 +183,7 @@ hwys2endpoints <- function(place, trimmed.hwys,
   if (nrow(hwys) == 0)
     return(NULL)
 
-  # denode / spatial clean. cld be a redundant call but doesn't matter
+  # denode / spatial clean. kinda a redundant call but i really hate those extra nodes
   hwys <- denode.lines(trimmed.hwys, group.cols = c("SIGNT1", "SIGN1"))
 
   if(fill.gaps)
@@ -273,3 +280,45 @@ Get.bundled.ray.output <- function(place, trimmed.hwys, include.map = TRUE, ...)
 
 # tests / sample calls / debugs -------------------------------------------
 
+'
+pvd  <- plc[plc$geoid == plc.ids["Providence"], ]
+pvd.hwy <- initial.hwy2ray.subset(pvd, hwys)
+
+mapview(st_boundary(pvd), color = "#800000") +
+  mapview(pvd.hwy, lwd = 2) +
+  mapview(filter(st_intersection(hwys,
+                          pvd),
+                 SIGNT1 == "I")
+          , color = "#008020")
+
+# this finds all line start/endpoints and identifies whether each constitutes a ray
+hw.nodes <-
+  hwys2endpoints(pvd, pvd.hwy)
+
+mapview(st_boundary(pvd), color = "#800000") +
+  mapview(pvd.hwy, lwd = 2) +
+  mapview(hw.nodes)
+
+# test run ---------------------------------------------------------------------
+
+Count.rays(plc.ids["Providence"],
+           hwys
+           ,plc
+           ,min.segment.length = 10
+           ,include.map = T
+           ,verbose = T)
+
+'
+'
+tmp  <- plc[plc$geoid == plc.ids["Ogallala"], ]
+tmp.hwy <- initial.hwy2ray.subset(tmp, hwys,
+                                  include.intersecting = T)
+library(mapview)
+mapview(st_boundary(tmp), color = "#800000") +
+  mapview(tmp.hwy, lwd = 5)
+
+#+
+  mapview(filter(st_intersection(hwys,
+                                 tmp))
+          , zcol="SIGNT1")
+'

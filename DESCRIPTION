@@ -22,7 +22,6 @@ Imports:
   nngeo,
   purrr,
   rlang,
-  rmapshaper,
   sf,
   tigris
 Encoding: UTF-8

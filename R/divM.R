@@ -2,9 +2,7 @@
 #'
 #' Measures of region dividedness and functions to examine/generate.
 #'
-#' @import lwgeom sf mapview dplyr purrr
-#' @import geosphere
-#' @importFrom rmapshaper ms_explode
+#' @import lwgeom sf dplyr purrr
 #' @importFrom rlang sym
 #' @importFrom nngeo st_remove_holes
 

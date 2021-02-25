@@ -19,19 +19,6 @@ conic.transform <- function(stdf,
 geod.length <- function(x)
   lwgeom::st_geod_length(sf::st_transform(x, 4326))
 
-#' ez.explode
-#'
-#' Drops units from any columns that have them and then calls
-#' rmapshaper::ms_explode(), which cannot handle units.
-#' @importFrom rmapshaper ms_explode
-#' @export
-ez.explode <- function(x) {
-  x %>%
-    mutate_if(~"units" %in% class(.)
-              ,as.numeric) %>%
-    rmapshaper::ms_explode() %>%
-    select(all_of(colnames(x)))
-}
 
 #' buffered.hull
 #'

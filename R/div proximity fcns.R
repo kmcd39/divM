@@ -16,6 +16,7 @@
 #' automatically generated for the supplied sf object.
 #' @param x sf to project
 #' @param projection_center to center projection around.
+#'
 #' @export
 local_equidistant_project <- function(x, projection_center = NULL) {
   x <- st_sf(x)
@@ -30,6 +31,7 @@ local_equidistant_project <- function(x, projection_center = NULL) {
 #' get_azimuthal_projection_centroid
 #'
 #' Gets a centroid of sf object x, or midpoint if a straight line is provided
+#' @importFrom geosphere midPoint
 get_azimuthal_projection_centroid <- function(x) {
   # longlat project input and extract coordinates
   coords <- st_coordinates(
