@@ -204,6 +204,10 @@ hwys2endpoints <- function(place, trimmed.hwys,
   # find nodes and count based on coverage
   hw.nodes <- find.endpoint.nodes(hwys)
 
+  if(is.null(hw.nodes) ||
+     nrow(hw.nodes) == 0)
+    return(NULL)
+
   # check coverage. do tiny negative buffer for international border issue.
   coverage <- st_covered_by(hw.nodes,
                             st_buffer(place, -10))
