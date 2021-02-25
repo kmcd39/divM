@@ -128,7 +128,7 @@ slurm.ray.wrapper <- function(
 }
 
 # call
-slurm.ray.wrapper(int.eligible[2],
+slurm.ray.wrapper(plc$geoid[1],
                   save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
                   save.name = "ray test")
 
@@ -143,10 +143,8 @@ slurm.ray.wrapper(int.eligible[2],
 # ?Count.rays
 test.ray.params1 <-
   tibble(
-    place.geoid = int.eligible[3:4], # a cpl for test
+    place.geoid = plc$geoid[3:6], # a cpl for test
     trim2LAC = FALSE,
-
-
 
     remove.holes = TRUE,
     minimum.segment.length = 10,
@@ -197,7 +195,6 @@ lac.eligible <- plc.ids[plc.ids %in% lac.eligible]
 
 # the NULL collection extract
 plc.ids %in% int.eligible %>% head()
-
 
 Count.rays(plc.ids[2],
            hwy.sf = hwys,
