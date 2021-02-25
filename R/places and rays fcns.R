@@ -189,7 +189,7 @@ hwys2endpoints <- function(place, trimmed.hwys,
                            fill.gaps = T,
                            verbose = T, ...) {
 
-  if (nrow(hwys) == 0)
+  if (nrow(trimmed.hwys) == 0)
     return(NULL)
 
   # denode / spatial clean. kinda a redundant call but, really hate those extra nodes

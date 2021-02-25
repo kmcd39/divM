@@ -231,7 +231,8 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
 #' functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
 #' @inheritParams fill.gaps
 #' @import purrr
-#' @export
+#'
+#' @export Fix.all.hwys
 Fix.all.hwys <- function(hwys, threshold = 200, return.gap.map = F, ...) {
 
   dn.hwy <- hwys %>%
@@ -254,3 +255,4 @@ Fix.all.hwys <- function(hwys, threshold = 200, return.gap.map = F, ...) {
 }
 
 
+# troubleshooting ---------------------------------------------------------
