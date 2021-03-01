@@ -17,7 +17,7 @@ county_polys <- co2cz %>%
 # that's all
 
 write.csv(county_polys,
-          "dividedness-measures/county-polys.csv")
+          ".local-measures/county-polys.csv")
 
 
 # to visualize ----------------

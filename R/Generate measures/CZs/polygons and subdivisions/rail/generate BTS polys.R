@@ -74,7 +74,7 @@ rail.polys <-
   )
 
 
-write.csv(rail.polys, "dividedness-measures/rail_polys_bts.csv")
+write.csv(rail.polys, ".local-measures/CZs/rail_polys_bts.csv")
 '
 
 # ending w some maps ------------------------------------------------------

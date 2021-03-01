@@ -7,9 +7,7 @@ library(divFcns)
 rm(list=ls())
 
 # get data & ws and fcns --------------------------------------------------
-czs <- divDat::czs
-czs <- czs %>% rename(region.id = 1, region.name = 2) %>% mutate(region.type = "cz")
-
+cbsas <- tigris::core_based_statistical_areas(year = 2019)
 
 con <-
   dblinkr::db.connect(
@@ -26,7 +24,7 @@ bts.nona <- bts %>% filter(!is.na(DIRECTION))
 bts.nona
 
 # spot checks -------------------------------------------------------------
-tmpcz = czs[czs$region.name == "Minneapolis", ]
+tmpcz = cbsas[cbsas$region.name == "Minneapolis", ]
 
 tmp.divs = st_intersection(bts,
                            st_union(tmpcz))
@@ -54,15 +52,15 @@ rail.mn
 
 
 # get elligible areas -----------------------------------------------------
-sbgp <- st_intersects(czs, bts.nona)
-rr.eligible <- czs$region.id[lengths(sbgp) > 0]
+sbgp <- st_intersects(cbsas, bts.nona)
+rr.eligible <- cbsas$region.id[lengths(sbgp) > 0]
 
 
 # map thru and generate ---------------------------------------------------
 
 rail.polys <-
   map_dfr( rr.eligible,
-           ~Polys.wrapper(czs[czs$region.id == ., ]
+           ~Polys.wrapper(cbsas[cbsas$region.id == ., ]
                           , bts.nona
                          , fill.gaps = F
                          , div.identifier.column = NULL
@@ -74,7 +72,7 @@ rail.polys <-
   )
 
 
-write.csv(rail.polys, "dividedness-measures/rail_polys_bts.csv")
+write.csv(rail.polys, ".local-measures/CBSAs/rail_polys_bts.csv")
 '
 
 # ending w some maps ------------------------------------------------------
