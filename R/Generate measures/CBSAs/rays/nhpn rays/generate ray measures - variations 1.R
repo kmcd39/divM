@@ -3,15 +3,21 @@ library(sf)
 library(tidyverse)
 
 # devtools::load_all()
-# source(here::here("R/Generate measures/rays/setup ray ws.R"))
-load(here::here("R/Generate measures/rays/ray ws.Rdata"))
+# source(here::here("R/Generate measures/setup ray ws.R"))
+load(here::here("R/Generate measures/ray-ws.Rdata"))
 
+# replace plc list from cz ray ws
+plc <-
+  readRDS(here::here("R/Generate measures/CBSAs/rays/largest.plc.in.cbsa.rds"))
+
+plc <- st_sf(plc) %>% divM::conic.transform()
+plc$geoid <- plc$plc.id
+plc$name <- plc$plc.name
 # refresh crs -------------------------------------------------------------
 
 # sometimes gets unbundled from object when moving across systems
 st_crs(hwys) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
 st_crs(plc) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
-
 
 # Wrapper fcn for slurm ---------------------------------------------------
 
@@ -53,6 +59,7 @@ slurm.ray.wrapper <- function(
     hwys <- hwys %>% filter(FCLASS %in% divM::lac_codes |
                               SIGNT1 == "I")
 
+  browser()
   # pass on all the ridiculous # of parameters.. ----------------------------
   rays <- Count.rays(
     hwy.sf = hwys,
@@ -92,9 +99,21 @@ slurm.ray.wrapper <- function(
 }
 
 
-#slurm.ray.wrapper(plc$geoid[1],
-#                  save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
-#                  save.name = "ray test")
+
+divM::Count.rays(
+  hwy.sf = hwys,
+  place.sf = plc,
+  place.geoid = plc$geoid[2],
+  always.include = c("I", "U", "S"),
+  include.map = T
+)
+
+
+#list.files("/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/")
+
+slurm.ray.wrapper(plc$geoid[1],
+                  save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/",
+                  save.name = "ray test")
 
 # to slurm ----------------------------------------------------------------
 
@@ -116,7 +135,7 @@ interstate.ray.params1 <-
     drop.NA = T,
     buffer.meters = 300,
     # save params
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/",
     save.name = "Rays-interstates-v1"
   )
 
@@ -128,7 +147,7 @@ job <- rslurm::slurm_apply(
   jobname = "rays-interstates-v1",
   nodes = 10,
   cpus_per_node = 1,
-  slurm_options = list(time = "4:00:00",
+  slurm_options = list(time = "2:00:00",
                        "mem-per-cpu" = "5G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
@@ -157,7 +176,7 @@ lac.ray.params1 <-
     drop.NA = T,
     buffer.meters = 300,
     # save params
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/",
     save.name = "Rays-limitedaccess-v1"
   )
 
@@ -170,14 +189,13 @@ job <- rslurm::slurm_apply(
   jobname = "rays-LACs-v1",
   nodes = 10,
   cpus_per_node = 1,
-  slurm_options = list(time = "4:00:00",
+  slurm_options = list(time = "2:00:00",
                        "mem-per-cpu" = "5G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
 
   add_objects = c("czs", "hwys", "plc")
 )
-
 
 
 # interstates + intersecting ----------------------------------------------
@@ -199,7 +217,7 @@ int.intersecting.params1 <-
     drop.NA = T,
     buffer.meters = 300,
     # save params
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/",
     save.name = "rays-interstates-and-intersecting-v1"
   )
 
@@ -212,10 +230,96 @@ job <- rslurm::slurm_apply(
   jobname = "int.intersecting.params1-v1",
   nodes = 10,
   cpus_per_node = 1,
-  slurm_options = list(time = "4:00:00",
+  slurm_options = list(time = "2:00:00",
                        "mem-per-cpu" = "5G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
 
   add_objects = c("czs", "hwys", "plc")
 )
+
+
+
+# did all generate? -------------------------------------------------------
+'
+save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/"
+(fns <- list.files(save.dir, full.names = T))
+cbsa.rays <-
+  map(fns,
+      vroom::vroom)
+
+names(cbsa.rays) <- list.files(save.dir)
+
+# which not in each .csv?
+(remaining <- cbsa.rays %>%
+  map( ~{plc %>%
+      filter(! plc.id %in% .x$plc.geoid)
+  })
+  )
+
+
+
+#LAC test
+divM::Count.rays(place.geoid = "4248360",
+                 hwys,
+                 plc,
+                 # spatial clean params
+                 remove.holes = TRUE,
+                 minimum.segment.length = 10,
+                 minimum.hwy.length = 1000,
+                 fill.gaps = T,
+                 # hwy-inclusion params
+                 always.include = NULL, # pre-filtered to LACs
+                 include.intersecting = FALSE,
+                 hwy.types = NULL, # (intersecting types)
+                 drop.NA = T,
+                 buffer.meters = 300,
+                 # save params
+                 include.map = T
+                 )
+
+
+
+# final interstates-only --------------------------------------------------
+
+int.remaining <- remaining$`Rays-interstates-v1.csv`$plc.id
+
+
+divM::Count.rays(place.geoid = int.remaining[1],
+                 hwys,
+                 plc,
+                 # spatial clean params
+                 trim2LAC = FALSE,
+                 remove.holes = TRUE,
+                 minimum.segment.length = 10,
+                 minimum.hwy.length = 1000,
+                 fill.gaps = T,
+                 # hwy-inclusion params
+                 always.include = c("I"), # hwy types to include (interstates)
+                 include.intersecting = FALSE,
+                 hwy.types = NULL, # (intersecting types)
+                 drop.NA = T,
+                 buffer.meters = 300
+                 )
+
+
+slurm.ray.wrapper(
+  # to iterate thru
+  place.geoid = int.remaining[1],
+  # spatial clean params
+  trim2LAC = FALSE,
+  remove.holes = TRUE,
+  minimum.segment.length = 10,
+  minimum.hwy.length = 1000,
+  fill.gaps = T,
+  # hwy-inclusion params
+  always.include = c("I"), # hwy types to include (interstates)
+  include.intersecting = FALSE,
+  hwy.types = NULL, # (intersecting types)
+  drop.NA = T,
+  buffer.meters = 300,
+  # save params
+  save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/",
+  save.name = "Rays-interstates-v1"
+)
+'

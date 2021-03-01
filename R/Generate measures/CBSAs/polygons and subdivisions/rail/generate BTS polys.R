@@ -3,14 +3,14 @@ library(dplyr)
 library(purrr)
 library(mapview)
 library(lwgeom)
-library(divFcns)
+
 rm(list=ls())
 
 # get data & ws and fcns --------------------------------------------------
-czs <- divDat::czs
-czs <- czs %>% rename(region.id = 1, region.name = 2) %>% mutate(region.type = "cz")
+# form czs from counties
+cbsas
 
-
+# devtools::install_github("https://github.com/kmcd39/dblinkr.git")
 con <-
   dblinkr::db.connect(
     Sys.getenv("PRINCETON_LOGIN"),

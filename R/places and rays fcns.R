@@ -102,6 +102,8 @@ initial.hwy2ray.subset <- function(place, hwy.sf,
   # core highway types
   if(!is.null(always.include))
     hwyP <- hwy %>% filter(SIGNT1 %in% always.include)
+  else
+    hwyP <- hwy
 
   # end if appropriate
   if(!include.intersecting)
@@ -248,25 +250,20 @@ Get.bundled.ray.output <- function(place, trimmed.hwys, include.map = TRUE, ...)
 
   # ID ray nodes -----------------------------------------------------------------
 
+  # prep returned object to contain both ray count & mapview object.
+  out <- list()
+
   # this finds all line start/endpoints and identifies whether each constitutes a ray
   hw.nodes <- hwys2endpoints(place, trimmed.hwys, ...)
 
-  # prep returned object ---------------------------------------------------
-
-  # both ray count & mapview object.
-  out <- list()
-
-  # If no hw nodes found, return 0
-  if( is.null(hw.nodes) )
-    return(return.null.early(hw.nodes, include.map, trimmed.hwys))
-
-  # do the work if not NULL
+  # are any of them outside Place area (ray-constituting)?
   hw.nodes <- hw.nodes[hw.nodes$outside, ]
 
-
-  if( is.null(hw.nodes) ) #(filtering nodes may make null again esp. for interstate plan..)
+  # If no ray nodes found, return 0
+  if( is.null(hw.nodes) || nrow(hw.nodes) == 0)
     return(return.null.early(hw.nodes, include.map, trimmed.hwys))
 
+  # otherwise, organize output
   hw.nodes$n <- factor(1:nrow(hw.nodes))
 
   node.counts <- hw.nodes %>%
