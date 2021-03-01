@@ -6,18 +6,17 @@ library(lwgeom)
 rm(list=ls())
 
 # get xwalk
-co2cz = xwalks::co2cz
+co2cbsa <- xwalks::co2cbsa
 
 # count # counties w/in CZ
-county_polys <- co2cz %>%
-  count(cz, cz_name) %>%
+county_polys <- co2cbsa %>%
+  count(cbsa, cbsa_name) %>%
   ungroup() %>%
   rename(county_polys = n)
 
 # that's all
-
 write.csv(county_polys,
-          "dividedness-measures/county-polys.csv")
+          "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/polys/county-polys.csv")
 
 
 # to visualize ----------------

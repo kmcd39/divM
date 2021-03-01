@@ -3,12 +3,13 @@ library(dplyr)
 library(purrr)
 library(mapview)
 library(lwgeom)
-library(divFcns)
+
 rm(list=ls())
 
 # get data & ws and fcns --------------------------------------------------
 cbsas <- tigris::core_based_statistical_areas(year = 2019)
 
+# devtools::install_github("https://github.com/kmcd39/dblinkr.git")
 con <-
   dblinkr::db.connect(
     Sys.getenv("PRINCETON_LOGIN"),
