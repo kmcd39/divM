@@ -4,43 +4,62 @@ library(purrr)
 library(mapview)
 library(lwgeom)
 
-plcs <- divDat::plc
-plcs <- plcs %>% divM::conic.transform()
+state_list <- xwalks::co2cbsa$statefp %>% unique()
 
-czs <- divDat::czs
-#maczs <- czs %>% filter(cz %in% maczs)
+plcs <- map_dfr( state_list,
+                 ~tigris::places(state = .,
+                                 year = 2019)
+                 )
 
-# visualize sample
-plcs %>%
-  filter(STATEFP=="25") %>%
-  mapview(zcol="NAME") +
-  mapview(st_boundary(maczs)
-          , color = "red")
+cbsas <- tigris::core_based_statistical_areas( year = 2019)
+
+
+plcs$plc.id <-  plcs$GEOID
+cbsas$cbsa.id <- cbsas$GEOID
 
 # generate xwalk
-plc2cz <- xwalks::generate.coterminous.xwalk(smaller.geo = plcs,
-                                             larger.geo = czs)
-plc.polys <- plc2cz %>%
-  count(cz,cz_name) %>%
+plc2cbsa <-
+  xwalks::get.spatial.overlap(sf1 = plcs,
+                              sf2 = cbsas,
+                              "plc.id",
+                              "cbsa.id")
+
+
+nrow(plc2cbsa)
+plc2cbsa$perc.area %>% summary()
+plc2cbsa$perc.area %>% quantile(seq(0,1,.05))
+plc2cbsa %>% arrange(perc.area)
+
+
+# keep >10% in area for now
+cbsa.plc.polys <- plc2cbsa %>%
+  filter(perc.area >= .10) %>%
+  tibble() %>%
+  count(cbsa.id) %>%
   rename(place.polys = n)
 
-# quick check
-# first 2 sld be equal; 3rd shld be # of czs
-nrow(plcs)
-nrow(plc2cz)
-nrow(plc.polys)
+cbsa.plc.polys <-
+  cbsa.plc.polys %>%
+  left_join(
+    select(tibble(cbsas),
+           cbsa.name = NAME,
+           cbsa.id)
+  )
 
+cbsa.plc.polys
+
+# quick check
+# first 2 sld be equal; 3rd shld be # of cbsas
+nrow(plcs)
+nrow(plc2cbsa)
+nrow(cbsa.plc.polys)
+cbsa.plc.polys$place.polys %>% sum()
 plc.polys
 
 
 # write ------------------------------------------------------------------------
-write.csv(plc.polys,
-          "dividedness-measures/place-polys.csv")
+write.csv(cbsa.plc.polys,
+          "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/polys/place-polys.csv")
 
 
 # to map sample area:
-plc2cz %>%
-  filter(cz_name == "Minneapolis") %>%
-  left_join(plcs['GEOID']) %>%
-  st_sf() %>%
-  mapview(zcol= "NAMELSAD")
