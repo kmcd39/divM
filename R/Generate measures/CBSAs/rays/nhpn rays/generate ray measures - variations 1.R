@@ -59,7 +59,6 @@ slurm.ray.wrapper <- function(
     hwys <- hwys %>% filter(FCLASS %in% divM::lac_codes |
                               SIGNT1 == "I")
 
-  browser()
   # pass on all the ridiculous # of parameters.. ----------------------------
   rays <- Count.rays(
     hwy.sf = hwys,
@@ -323,7 +322,6 @@ slurm.ray.wrapper(
   save.name = "Rays-interstates-v1"
 )
 '
-<<<<<<< HEAD
 
 save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CBSAs/rays/"
 (fns <- list.files(save.dir, full.names = T))
@@ -392,5 +390,3 @@ map2(cbsa.rays, write.names,
      )
 
 
-=======
->>>>>>> b49abc5c73abe306eed0d01b5c8c1e14e2660ba8

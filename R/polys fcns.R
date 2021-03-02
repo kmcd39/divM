@@ -18,7 +18,8 @@
 #' @export subset.polys.divs
 subset.polys.divs <- function(region, div.sf,
                               div.identifier.column = NULL,
-                              always.include = NULL, include.intersecting = F,
+                              always.include = NULL,
+                              include.intersecting = F,
                               remove.NA.divs = T, ...) {
 
   # trim to region
@@ -26,7 +27,8 @@ subset.polys.divs <- function(region, div.sf,
                   ,region )
 
   # End here if no hwy types excluded
-  if( is.null(div.identifier.column) ) return(divs)
+  if( is.null(div.identifier.column) )
+    return(divs)
 
   # remove NAs if 'remove.NA.divs'
   if(remove.NA.divs)
@@ -41,17 +43,19 @@ subset.polys.divs <- function(region, div.sf,
     divP <- divs
 
   # end here if finished
-  if( is.null(include.intersecting) |
-      !include.intersecting) return(divP)
+  if( is.null(include.intersecting) ||
+      !include.intersecting)
+    return(divP)
 
   # Incl hwys that intersect otherwise ------------
-  rt <- divs %>%
+  rt <-
+    divs %>%
     filter(! (!!rlang::sym(div.identifier.column) %in% always.include) )
 
-  touches.p <- st_filter(rt, divP)
+  touches.core <- st_filter(rt, divP)
 
-  if(nrow(touches.p) != 0)
-    divP <- rbind(divP,touches.p)
+  if(nrow(touches.core) != 0)
+    divP <- rbind(divP, touches.core)
 
   return(divP)
 }
@@ -229,7 +233,7 @@ handle.overlaps <- function(x) {
 #' @inheritDotParams Fix.all.hwys
 #' @inheritDotParams polygonal.div
 #' @export Polys.wrapper
-Polys.wrapper <- function( region, div.sf, fill.gaps = F, ...) {
+Polys.wrapper <- function( region, div.sf, fill.gaps = T, ...) {
 
   divs <- subset.polys.divs(region, div.sf, ...)
   cat("subsetting done\n")

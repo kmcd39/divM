@@ -1,17 +1,16 @@
 # setup ws ----------------------------------------------------------------
 library(sf)
 library(tidyverse)
-
+# rm(list=ls())
 # devtools::load_all()
 # source(here::here("R/Generate measures/rays/setup ray ws.R"))
-load(here::here("R/Generate measures/rays/ray ws.Rdata"))
+load(here::here("R/Generate measures/ray-ws.Rdata"))
 
 # refresh crs -------------------------------------------------------------
 
 # sometimes gets unbundled from object when moving across systems
 st_crs(hwys) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
 st_crs(plc) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
-
 
 # Wrapper fcn for slurm ---------------------------------------------------
 
@@ -93,7 +92,7 @@ slurm.ray.wrapper <- function(
 
 
 #slurm.ray.wrapper(plc$geoid[1],
-#                  save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+#                  save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CZs/rays/",
 #                  save.name = "ray test")
 
 # to slurm ----------------------------------------------------------------
@@ -116,7 +115,7 @@ interstate.ray.params1 <-
     drop.NA = T,
     buffer.meters = 300,
     # save params
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CZs/rays/",
     save.name = "Rays-interstates-v1"
   )
 
@@ -128,7 +127,7 @@ job <- rslurm::slurm_apply(
   jobname = "rays-interstates-v1",
   nodes = 10,
   cpus_per_node = 1,
-  slurm_options = list(time = "4:00:00",
+  slurm_options = list(time = "2:00:00",
                        "mem-per-cpu" = "5G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
@@ -157,7 +156,7 @@ lac.ray.params1 <-
     drop.NA = T,
     buffer.meters = 300,
     # save params
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CZs/rays/",
     save.name = "Rays-limitedaccess-v1"
   )
 
@@ -170,7 +169,7 @@ job <- rslurm::slurm_apply(
   jobname = "rays-LACs-v1",
   nodes = 10,
   cpus_per_node = 1,
-  slurm_options = list(time = "4:00:00",
+  slurm_options = list(time = "2:00:00",
                        "mem-per-cpu" = "5G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
@@ -199,7 +198,7 @@ int.intersecting.params1 <-
     drop.NA = T,
     buffer.meters = 300,
     # save params
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/",
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CZs/rays/",
     save.name = "rays-interstates-and-intersecting-v1"
   )
 
@@ -212,7 +211,7 @@ job <- rslurm::slurm_apply(
   jobname = "int.intersecting.params1-v1",
   nodes = 10,
   cpus_per_node = 1,
-  slurm_options = list(time = "4:00:00",
+  slurm_options = list(time = "2:00:00",
                        "mem-per-cpu" = "5G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
