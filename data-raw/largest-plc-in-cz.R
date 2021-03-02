@@ -34,7 +34,11 @@ czs <- counties %>%
   group_by(cz, cz_name) %>%
   summarise(., do_union = T)
 
-plcs <-   divM::conic.transform(plcs)
+czs <- czs %>% filter(!is.na(cz))
+
+# transform ---------------------------------------------------------------
+
+plcs <- divM::conic.transform(plcs)
 
 # get plc2cz xwalk
 plc2cz <- xwalks::get.spatial.overlap(select(plcs
@@ -76,17 +80,16 @@ plc2cz.pop <- left_join( plc2cz.trimmed,
                          by = c("plcid"))
 
 # filter to largest centers in cz's --------------------------------------------------------------
-
-
-
-(largest.plc.in.cz <-
+largest.plc.in.cz <-
    tibble(plc2cz.pop) %>%
    mutate(plc.pop = as.integer(plc.pop)) %>%
    group_by(cz) %>%
    filter(plc.pop ==
             max(plc.pop,
-                na.rm = T)))
+                na.rm = T)) %>%
+  ungroup()
 
+largest.plc.in.cz
 # duplcate czs?
 largest.plc.in.cz %>%
   filter(cz %in%
@@ -101,13 +104,15 @@ nrow(czs)
 
 # add raw plc geometries --------------------------------------------------
 # (not spatial overlap geos)
-
 largest.plc.in.cz <-
   left_join(
     largest.plc.in.cz,
     plcs[, c("GEOID", "geometry")],
     by = c("plc.id" = "GEOID")
     )
+
+library(lwgeom)
+largest.plc.in.cz %>% st_sf() %>% st_is_valid() %>% sum()
 
 # write data to pkg -----------------------------------------------------------------
 usethis::use_data(largest.plc.in.cz, overwrite = TRUE)
