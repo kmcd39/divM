@@ -1,4 +1,5 @@
 ^dividedness\.measures\.Rproj$
 ^\.Rproj\.user$
-^data-raw$
-^R/Generate-measures
+
+^data-raw/.*$
+^R/Generate-measures/.*$
