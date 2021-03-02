@@ -52,9 +52,10 @@ plc2cz <- xwalks::get.spatial.overlap(select(plcs
 # assign plc to czs by majority area
 plc2cz.trimmed <-
   tibble(plc2cz) %>%
-  group_by(cz, plcid) %>%
+  group_by(plcid) %>%
   filter(perc.area ==
-           max(perc.area))
+           max(perc.area,
+               na.rm = T))
 
 
 # add population to spatial data ---------------------------------------------------------
@@ -82,7 +83,8 @@ plc2cz.pop <- left_join( plc2cz.trimmed,
 # filter to largest centers in cz's --------------------------------------------------------------
 largest.plc.in.cz <-
    tibble(plc2cz.pop) %>%
-   mutate(plc.pop = as.integer(plc.pop)) %>%
+   mutate(plc.pop =
+            as.integer(plc.pop)) %>%
    group_by(cz) %>%
    filter(plc.pop ==
             max(plc.pop,
@@ -91,6 +93,7 @@ largest.plc.in.cz <-
 
 largest.plc.in.cz
 # duplcate czs?
+largest.plc.in.cz %>% map_int( ~sum(duplicated(.)))
 largest.plc.in.cz %>%
   filter(cz %in%
            largest.plc.in.cz$cz[duplicated(cz)])
