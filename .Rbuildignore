@@ -3,3 +3,4 @@
 
 ^data-raw/.*$
 ^R/Generate-measures/.*$
+static vignettes/.*$
