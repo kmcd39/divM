@@ -5,15 +5,31 @@ library(mapview)
 library(lwgeom)
 rm(list=ls())
 # grab helper fcns --------------------------------------------------------
-# will probably put all these into divFcns pckg later
-#source("places & rays/places & rays fcns.R")
+
 devtools::load_all()
 
-czs <- divDat::czs %>% divM::region.reorg("cz")
+# form czs from counties  --------------------------------------------------------
+counties <- tigris::counties( year = 2019)
 
+counties <- counties %>%
+  left_join(xwalks::co2cz,
+            by = c("GEOID" = "countyfp",
+                   "STATEFP" = "statefp"))
+
+czs <- counties %>%
+  divM::conic.transform() %>%
+  group_by(cz, cz_name) %>%
+  summarise(., do_union = T)
+
+(czs <- czs %>% filter(!is.na(cz)))
+# plcs w/ pkg -------------------------------------------------------------
 plc <- divM::largest.plc.in.cz
 
-shp.dir <- "~/R/shapefiles/"
+plc <- plc %>% filter(!is.na(cz.id))
+
+# hwys from local ---------------------------------------------------------
+
+shp.dir <- "/scratch/gpfs/km31/other-local-data/" # "~/R/shapefiles/"
 hwys <- st_read(paste0(shp.dir
                        ,"National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
 hwys <- hwys %>%
@@ -30,18 +46,22 @@ hwys <- hwys %>%
 
 # set identical metered crs -----------------------------------------------
 czs <- czs %>% divM::conic.transform()
-plc <- plc %>% divM::conic.transform()
+plc <- plc %>% st_sf() %>%  divM::conic.transform()
 hwys <- hwys %>% divM::conic.transform()
 
 # build name-geoid place index --------------------------------------------
 # plc <- filter(plc , STATEFP  == 42) %>% # (for test state)
-plc.ids <- plc$geoid
-names(plc.ids) <- plc$name
 
+plc.ids <- plc$geoid
+names(plc.ids) <- plc$plc.name
+
+# duplicate some colms for expected names
+plc$geoid <- plc$plc.id
+plc$name <- plc$plc.name
 
 # save WS ----------------------------------------------------------------------
 
 # .Rdata for portability -- relies on local NHPN data anyway
 save.image(
-  here::here("R/Generate measures/rays/ray ws.Rdata")
+  here::here("R/Generate measures/ray-ws.Rdata")
   )

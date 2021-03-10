@@ -1,3 +1,6 @@
 ^dividedness\.measures\.Rproj$
 ^\.Rproj\.user$
-^data-raw$
+
+^data-raw/.*$
+^R/Generate-measures/.*$
+static vignettes/.*$

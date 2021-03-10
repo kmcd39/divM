@@ -1,39 +1,23 @@
 # get data & ws and fcns --------------------------------------------------
 rm(list=ls())
 library(sf)
-library(dplyr)
-library(purrr)
+library(tidyverse)
 library(mapview)
 library(lwgeom)
 devtools::load_all()
 
-# get czs
-czs <- divDat::czs %>% divM::region.reorg("cz")
+load(here::here("R/Generate measures/ray-ws.Rdata"))
 
-# downloaded from
-# https://catalog.data.gov/dataset/national-highway-planning-network-nhpn
-shp.dir <- "~/R/shapefiles/"
-hwys <- st_read(paste0(shp.dir, "National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
-hwys <- hwys %>%
-  select(c(div.id = 1, div.name = LNAME,
-           county = CTFIPS,
-           SOURCE,  # data source
-           F_SYSTEM, FCLASS, # addl hwy classification
-           LRSKEY, # Uniquely identifies a route within a state
-           SIGNT1, SIGNN1, SIGN1,
-           MILES, KM, state = STFIPS, geometry))
+# refresh crs -------------------------------------------------------------
 
-# recode i80 bus route (I80 in name column but SIGN columns blank)
-# This includes the bus route with interstates
-hwys[grepl("I[0-9]+", hwys$div.name),]$SIGNT1 = "I"
-hwys[grepl("I[0-9]+", hwys$div.name),]$SIGN1 = "I80 (bus route)"
-hwys[grepl("I[0-9]+", hwys$div.name),]
+# sometimes gets unbundled from object when moving across systems
+st_crs(hwys) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
+st_crs(plc) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
+st_crs(czs) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
 
+czs <- tibble(czs) %>% geoseg::region.reorg("cz") %>% st_sf()
 
-# make uniform metered crs -----------------------------------------------
-czs <- czs %>% divM::conic.transform()
-hwys <- hwys %>% divM::conic.transform()
-
+czs <- czs %>% rename(region.name = cz_name)
 # Limited-access proxy ---------------------------------------
 lac <- hwys %>% filter(FCLASS %in% divM::lac_codes |
                          SIGNT1 == "I")
@@ -47,6 +31,21 @@ int.eligible <- czs$region.id[lengths(sbgp) > 0]
 
 sbgp <- st_intersects(czs, lac)
 lac.eligible <- czs$region.id[lengths(sbgp) > 0]
+
+# test run ----------------------------------------------------------------
+tmp <-
+  Polys.wrapper(
+    czs %>% filter(grepl("Philadelphia", region.name))
+    , lac
+    , always.include = NULL
+    , fill.gaps = T
+    , return.sf = T )
+
+tmp %>% mapview()
+
+
+# wrapped fcn with options for variations: ---------------------------------
+?Polys.wrapper
 
 # map thru & generate measures --------------------------------------------
 
@@ -68,7 +67,7 @@ int.polys <- map_dfr(int.eligible
 
 
 write.csv(lac.polys,
-          "dividedness-measures/lac-gapfilled-hwy-polys.csv" )
+          "dividedness-measures/CZs/polys/lac-gapfilled-hwy-polys.csv" )
 
 write.csv(int.polys,
           "dividedness-measures/interstates-gapfilled-hwy-polys.csv" )

@@ -17,7 +17,8 @@ county_polys <- co2cz %>%
 # that's all
 
 write.csv(county_polys,
-          ".local-measures/county-polys.csv")
+          "/scratch/gpfs/km31/Generated_measures/dividedness-measures/CZs/polys/county-polys.csv",
+          row.names = F)
 
 
 # to visualize ----------------

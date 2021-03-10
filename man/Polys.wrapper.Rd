@@ -4,7 +4,7 @@
 \alias{Polys.wrapper}
 \title{Polys.wrapper}
 \usage{
-Polys.wrapper(region, div.sf, fill.gaps = F, ...)
+Polys.wrapper(region, div.sf, fill.gaps = T, ...)
 }
 \arguments{
 \item{...}{

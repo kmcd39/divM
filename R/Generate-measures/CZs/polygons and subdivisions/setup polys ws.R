@@ -1,27 +1,35 @@
 library(sf)
-library(dplyr)
-library(purrr)
+library(tidyverse)
 library(mapview)
 library(lwgeom)
 rm(list=ls())
-# grab helper fcns --------------------------------------------------------
-# will probably put all these into divFcns pckg later
-#source("places & rays/places & rays fcns.R")
-library(divFcns)
-czs <- divDat::czs
-  #select( cz = region.id
-  #        ,cz_name = region.name
-  #        ,state
-  #        ,cz.pop = population
-  #        ,geometry)
 
-plc <- readRDS("../intermediate saves/largest areas within regions/largest-plc-in-cz.RDS")
+devtools::load_all()
+
+# form czs from counties  --------------------------------------------------------
+counties <- tigris::counties( year = 2019)
+
+counties <- counties %>%
+  left_join(xwalks::co2cz,
+            by = c("GEOID" = "countyfp",
+                   "STATEFP" = "statefp"))
+
+czs <- counties %>%
+  divM::conic.transform() %>%
+  group_by(cz, cz_name) %>%
+  summarise(., do_union = T)
+
+czs
+
+
+# get plcs ----------------------------------------------------------------
+
 
 # get NHPN hwy shpfile
 shp.dir <- "~/R/shapefiles/"
 nhpn <- st_read(paste0(shp.dir, "National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
 nhpn <- nhpn %>%
-  select(c(div.id = 1, div.name = LNAME, 
+  select(c(div.id = 1, div.name = LNAME,
            county = CTFIPS,
            SOURCE,  # data source
            F_SYSTEM, FCLASS, # addl hwy classification
