@@ -168,7 +168,7 @@ trim.polys.by.pop <- function(sub.polys, region.id,
   cz.tracts = divM::ct.pops %>%
     filter(!!rlang::sym(region.type) == region.id) %>%
     select(geoid, population) %>%
-    divM::attach.tract.geometry()
+    attach.tract.geometry()
 
   #  & get total population for area
   cz.pop = sum(cz.tracts$population, na.rm = T)

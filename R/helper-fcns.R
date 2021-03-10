@@ -86,8 +86,9 @@ region.reorg <- function(df, region.type) {
 
 #' attach.tract.geometry
 #'
-#' Attaches tract geometries and xwalk info to ct.pops. The reason for this function is to avoid
-#' bundling geometries with this package, as they take up a lot of space.
+#' Attaches tract geometries and xwalk info to ct.pops. The reason for this function
+#' is to avoid bundling geometries with this package, as they take up a lot of space.
+#' Called from `trim.polys.by.pop`
 attach.tract.geometry <- function(cts) {
 
   # add geometries
@@ -101,4 +102,5 @@ attach.tract.geometry <- function(cts) {
 
   return(out)
 }
+
 

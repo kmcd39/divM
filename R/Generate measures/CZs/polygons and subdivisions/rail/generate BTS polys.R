@@ -3,7 +3,7 @@ library(dplyr)
 library(purrr)
 library(mapview)
 library(lwgeom)
-library(divFcns)
+library(divM)
 rm(list=ls())
 
 # get data & ws and fcns --------------------------------------------------
