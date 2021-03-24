@@ -57,21 +57,32 @@ plc2cbsa <- plc2cbsa %>%
             by = c("plc.id" =  "GEOID")
             )
 
-
 # largest place in cbsa ---------------------------------------------------
+
+cbsas %>% nrow()
 
 largest.plc.in.cbsa <- plc2cbsa %>%
   group_by(cbsa.id) %>%
-  filter(pop == max(pop))
+  filter(pop == max(pop,
+                    na.rm = T)) %>%
+  ungroup()
 
+# trim cols
 largest.plc.in.cbsa <-
-  ungroup(largest.plc.in.cbsa)
+  select(largest.plc.in.cbsa,
+         plc.id, cbsa.id, plc.name)
 
 class(largest.plc.in.cbsa)
 
+# re-attach place geometries
+largest.plc.in.cbsa <- left_join(largest.plc.in.cbsa,
+          pops[, c("GEOID", "geometry")],
+          by = c("plc.id" = "GEOID"))
+
+largest.plc.in.cbsa %>% st_sf() %>%  st_is_empty() %>% sum()
 # write -------------------------------------------------------------------
 
 saveRDS(largest.plc.in.cbsa,
-        here::here("R/Generate measures/CBSAs/rays/largest.plc.in.cbsa.rds")
+        here::here("R/Generate-measures/CBSAs/rays/largest.plc.in.cbsa.rds")
         )
 

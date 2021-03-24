@@ -117,9 +117,7 @@ largest.plc.in.cz <-
 library(lwgeom)
 largest.plc.in.cz %>% st_sf() %>% st_is_valid() %>% sum()
 
-
 # save in 4326 epsg? ------------------------------------------------------
-
 largest.plc.in.cz <-
   largest.plc.in.cz %>% st_sf() %>% st_transform(4326)
 
