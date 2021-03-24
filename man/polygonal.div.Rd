@@ -39,13 +39,13 @@ subdivision, that can easily be mapped. If false (default), returns a one row df
 for region with columns for region identifiers and number of polygons.}
 }
 \description{
-Given a boundary and corresponding divisions, within boundary, filters by div.type
-(currently hardcoded to SIGNT1 column), then finds number of sub-polygons in
-region. Returns a dataframe with region identifiers and number of polygons. Filter
-all subpolygons w/ area between 50,000 m^2 (these comprise highway interchanges
-for example.) Also applies "negative buffer" -- i.e., shrinks the area to find
-polygons. This handles issues where hwy resolution is slightly different from that
-of CZs or ends slightly earlier at international boundary. It also means that if a
-hwy ends or changes class a few meters from the cz boundary, it can still count as
-a division. (Operative difference in Dallas, TX, for example)
+Given a boundary and corresponding divisions within boundary,  finds number of
+sub-polygons in region. Returns a dataframe with region identifiers and number of
+polygons. Filter all subpolygons w/ area between 50,000 m^2 (these comprise
+highway interchanges for example.) Also applies "negative buffer" -- i.e., shrinks
+the area to find polygons. This handles issues where hwy resolution is slightly
+different from that of CZs or ends slightly earlier at international boundary. It
+also means that if a hwy ends or changes class a few meters from the cz boundary,
+it can still count as a division. (Operative difference in Dallas, TX, for
+example)
 }

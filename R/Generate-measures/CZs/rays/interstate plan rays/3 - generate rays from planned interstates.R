@@ -1,6 +1,7 @@
 # setup workspace ---------------------------------------------------------
 source("places & rays/setup ray ws.R")
 
+
 # get cleaned interstate hwy plan
 #hwyplan = st_read("~/R/shapefiles/1947plan/addl cleans 2/cleaner-hwy-plan.shp")
 hwyplan = st_read("~/R/shapefiles/1947plan/most addl cleans/cleaner-hwy-plan.shp")

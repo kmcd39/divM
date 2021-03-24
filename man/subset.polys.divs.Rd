@@ -15,12 +15,14 @@
 )
 }
 \arguments{
-\item{region}{1-row sf polygon to create sub-division measures for}
+\item{region}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
+sub-division measures for}
 
 \item{div.sf}{sf object with division.}
 
 \item{div.identifier.column}{If 'div.sf' has an identifier column to be used to
-filter by, supply here. Must be supplied for subsequent arguments to work.}
+filter by, supply here. Must be supplied for other subset arguments to work;
+\code{NULL} by default.}
 
 \item{always.include}{Always include divisions that have this value in the
 identifier column}

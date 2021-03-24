@@ -7,6 +7,7 @@
 attach.tract.geometry(cts)
 }
 \description{
-Attaches tract geometries and xwalk info to ct.pops. The reason for this function is to avoid
-bundling geometries with this package, as they take up a lot of space.
+Attaches tract geometries and xwalk info to ct.pops. The reason for this function
+is to avoid bundling geometries with this package, as they take up a lot of space.
+Called from \code{trim.polys.by.pop}
 }

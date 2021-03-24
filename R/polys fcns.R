@@ -5,10 +5,12 @@
 #' for supplied region. If, as with NHPN data, the divisions have an "identifier
 #' column," the later arguments can be specified to control what divisions are kept
 #' for polygon creation.
-#' @param region 1-row sf polygon to create sub-division measures for
+#' @param region 1-row sf polygon with `region.id`/`region.type` columns to create
+#'   sub-division measures for
 #' @param div.sf sf object with division.
 #' @param div.identifier.column If 'div.sf' has an identifier column to be used to
-#'   filter by, supply here. Must be supplied for subsequent arguments to work.
+#'   filter by, supply here. Must be supplied for other subset arguments to work;
+#'   `NULL` by default.
 #' @param always.include Always include divisions that have this value in the
 #'   identifier column
 #' @param include.intersecting Include additional divisions that don't have above
@@ -63,15 +65,16 @@ subset.polys.divs <- function(region, div.sf,
 
 #' polygonal.div
 #'
-#' Given a boundary and corresponding divisions, within boundary, filters by div.type
-#' (currently hardcoded to SIGNT1 column), then finds number of sub-polygons in
-#' region. Returns a dataframe with region identifiers and number of polygons. Filter
-#' all subpolygons w/ area between 50,000 m^2 (these comprise highway interchanges
-#' for example.) Also applies "negative buffer" -- i.e., shrinks the area to find
-#' polygons. This handles issues where hwy resolution is slightly different from that
-#' of CZs or ends slightly earlier at international boundary. It also means that if a
-#' hwy ends or changes class a few meters from the cz boundary, it can still count as
-#' a division. (Operative difference in Dallas, TX, for example)
+#' Given a boundary and corresponding divisions within boundary,  finds number of
+#' sub-polygons in region. Returns a dataframe with region identifiers and number of
+#' polygons. Filter all subpolygons w/ area between 50,000 m^2 (these comprise
+#' highway interchanges for example.) Also applies "negative buffer" -- i.e., shrinks
+#' the area to find polygons. This handles issues where hwy resolution is slightly
+#' different from that of CZs or ends slightly earlier at international boundary. It
+#' also means that if a hwy ends or changes class a few meters from the cz boundary,
+#' it can still count as a division. (Operative difference in Dallas, TX, for
+#' example)
+#' @inheritParams
 #' @param negative.buffer Shrink region by this amount only for calculating polygons.
 #'   Useful for handling shpfiles w/ different resolutions, especially for regions
 #'   along an international border. Defaults to 100m.
@@ -97,12 +100,12 @@ polygonal.div <- function(  region, divs
                             , verbose = F, return.sf = F, ...) {
 
   require(lwgeom)
-  region.type = unique(region$region.type)
-  region.id = unique(region$region.id)
-  if(verbose) cat("generating", region.type,
-                  "-",region.id, "\n" )
+  region.type <- unique(region$region.type)
+  region.id <-  unique(region$region.id)
+  if(verbose)
+    cat("generating", region.type, "-",region.id, "\n" )
 
-  initial.crs = st_crs(divs)
+  initial.crs <- st_crs(divs)
 
   # return w/ 0 if no included divisions overlap
   if( nrow(divs) == 0 )
@@ -133,9 +136,12 @@ polygonal.div <- function(  region, divs
   # filter by population if appropriate
   if( is.numeric(min.population.count) |
       is.numeric(min.population.perc) )
-    polys <- trim.polys.by.pop( polys, region.id, region.type
-                                ,min.population.count, min.population.perc,
-                                return.sf )
+    polys <- trim.polys.by.pop( polys,
+                                region.id,
+                                region.type = region.type,
+                                min.population.count = min.population.count,
+                                min.population.perc = min.population.perc,
+                                return.sf = return.sf )
 
   # number the subpolygons
   polys$id = 1:nrow(polys)
@@ -168,41 +174,47 @@ trim.polys.by.pop <- function(sub.polys, region.id,
                               min.population.perc = NULL,
                               return.sf = F) {
 
-  # filter cts to area
-  cz.tracts = divM::ct.pops %>%
+  # population-by-ct is bundled with package; attach crosswalk
+  area.cts <-
+    divM::ct.pops %>%
+    left_join(xwalks::ctx[,c("geoid", "cbsa")])
+
+  # filter to current area based on supplied region type.
+  area.cts  <-
+    area.cts %>%
     filter(!!rlang::sym(region.type) == region.id) %>%
     select(geoid, population) %>%
-    attach.tract.geometry()
+    divM::attach.tract.geometry()
 
   #  & get total population for area
-  cz.pop = sum(cz.tracts$population, na.rm = T)
+  area.pop <- sum(area.cts$population, na.rm = T)
 
   # buffer 0 pre-validate trick
   # sub.polys <- sub.polys %>% st_buffer(0)
 
   # add ids to polys for interpolation
-  sub.polys$id = 1:nrow(sub.polys)
+  sub.polys$id <- 1:nrow(sub.polys)
 
-  # interpolate
-  return.class = case_when(return.sf ~ "sf",
+  # interpolate population from CTs to polygons
+  return.class <- case_when(return.sf ~ "sf",
                            !return.sf ~ "tibble")
 
-  polys = areal::aw_interpolate( sub.polys, tid = id
-                                 ,cz.tracts, sid = geoid
+  polys <- areal::aw_interpolate( sub.polys, tid = id
+                                 ,area.cts, sid = geoid
                                  ,weight = "sum" #"total"
                                  ,extensive = c("population")
                                  ,output = return.class )
 
-  polys = polys %>%
-    mutate(pop.perc = population / cz.pop * 100)
+  polys$pop.perc <- polys$population / area.pop
 
   # filter by total population and/or percent, based on which arguments are supplied
   if( is.numeric(min.population.count) )
-    polys = polys %>%
+    polys  <- polys %>%
     filter(population > min.population.count)
+
   if( is.numeric(min.population.perc) )
-    polys = polys %>%
-    filter(pop.perc >= min.population)
+    polys <- polys %>%
+    filter(pop.perc >= min.population.perc)
 
   return(polys)
 }

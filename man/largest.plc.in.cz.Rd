@@ -5,7 +5,7 @@
 \alias{largest.plc.in.cz}
 \title{largest place in commuting zone}
 \format{
-An object of class \code{grouped_df} (inherits from \code{tbl_df}, \code{tbl}, \code{data.frame}) with 742 rows and 5 columns.
+An object of class \code{sf} (inherits from \code{tbl_df}, \code{tbl}, \code{data.frame}) with 741 rows and 5 columns.
 }
 \usage{
 largest.plc.in.cz

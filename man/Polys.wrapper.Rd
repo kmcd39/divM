@@ -10,10 +10,12 @@ Polys.wrapper(region, div.sf, fill.gaps = T, ...)
 \item{...}{
   Arguments passed on to \code{\link[=subset.polys.divs]{subset.polys.divs}}, \code{\link[=Fix.all.hwys]{Fix.all.hwys}}, \code{\link[=polygonal.div]{polygonal.div}}
   \describe{
-    \item{\code{region}}{1-row sf polygon to create sub-division measures for}
+    \item{\code{region}}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
+sub-division measures for}
     \item{\code{div.sf}}{sf object with division.}
     \item{\code{div.identifier.column}}{If 'div.sf' has an identifier column to be used to
-filter by, supply here. Must be supplied for subsequent arguments to work.}
+filter by, supply here. Must be supplied for other subset arguments to work;
+\code{NULL} by default.}
     \item{\code{always.include}}{Always include divisions that have this value in the
 identifier column}
     \item{\code{include.intersecting}}{Include additional divisions that don't have above

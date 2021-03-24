@@ -29,7 +29,8 @@ plc <- plc %>% filter(!is.na(cz.id))
 
 # hwys from local ---------------------------------------------------------
 
-shp.dir <- "/scratch/gpfs/km31/other-local-data/" # "~/R/shapefiles/"
+shp.dir <-"~/R/shapefiles/"
+  #"/scratch/gpfs/km31/other-local-data/" #
 hwys <- st_read(paste0(shp.dir
                        ,"National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
 hwys <- hwys %>%
@@ -52,7 +53,7 @@ hwys <- hwys %>% divM::conic.transform()
 # build name-geoid place index --------------------------------------------
 # plc <- filter(plc , STATEFP  == 42) %>% # (for test state)
 
-plc.ids <- plc$geoid
+plc.ids <- plc$plc.id
 names(plc.ids) <- plc$plc.name
 
 # duplicate some colms for expected names
@@ -63,5 +64,5 @@ plc$name <- plc$plc.name
 
 # .Rdata for portability -- relies on local NHPN data anyway
 save.image(
-  here::here("R/Generate measures/ray-ws.Rdata")
+  here::here("R/Generate-measures/ray-ws.Rdata")
   )
