@@ -99,7 +99,7 @@ polygonal.div <- function(  region, divs
                             , min.population.perc = NULL
                             , verbose = F, return.sf = F, ...) {
   if(!all(c("region.id"  , "region.type", "region.name", "geometry") %in%
-          colnames(czs)))
+          colnames(region)))
     warning('warning: polygon function expects columns c("region.id", "region.type", "region.name", "geometry")
             in first supplied argument')
 
