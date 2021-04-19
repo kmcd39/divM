@@ -6,7 +6,7 @@ library(mapview)
 library(lwgeom)
 devtools::load_all()
 
-load(here::here("R/Generate measures/ray-ws.Rdata"))
+load(here::here("R/Generate-measures/ray-ws.Rdata"))
 
 # refresh crs -------------------------------------------------------------
 

@@ -98,6 +98,11 @@ polygonal.div <- function(  region, divs
                             , min.population.count = NULL
                             , min.population.perc = NULL
                             , verbose = F, return.sf = F, ...) {
+  if(!all(c("region.id"  , "region.type", "region.name", "geometry") %in%
+          colnames(czs)))
+    warning('warning: polygon function expects columns c("region.id", "region.type", "region.name", "geometry")
+            in first supplied argument')
+
 
   require(lwgeom)
   region.type <- unique(region$region.type)
@@ -184,7 +189,7 @@ trim.polys.by.pop <- function(sub.polys, region.id,
     area.cts %>%
     filter(!!rlang::sym(region.type) == region.id) %>%
     select(geoid, population) %>%
-    divM::attach.tract.geometry()
+    attach.tract.geometry()
 
   #  & get total population for area
   area.pop <- sum(area.cts$population, na.rm = T)
