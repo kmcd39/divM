@@ -1,5 +1,83 @@
 
-# convenience -------------------------------------------------------------
+# region construction and tigris retrievals ------------------------------------
+
+#' get.region.identifiers
+#'
+#' Gets region.id/region.name and attaches to region.type, to get bundled region id
+#' information in format expected by other functions.
+#'
+#' @param cz,cbsa one of a cz or cbsa identifier code (either 5-digit # or 5-char
+#'   numeric)
+#'
+#' @return a 1-row tibble that organizes the region id/name/type
+#'
+#' @export
+get.region.identifiers <- function(
+  cz = NULL,
+  cbsa = NULL) {
+
+  requireNamespace("xwalks")
+
+  if (is.null(c(cz, cbsa)))
+    stop("no non-null arguments")
+
+  if (!is.null(cz)) {
+    xw <- xwalks::co2cz
+    type <- "cz"
+    id <- cz
+    name <- xw[xw$cz %in% cz, ]$cz_name[1]
+
+  } else if (!is.null(cbsa)) {
+    xw <- xwalks::co2cbsa
+    type <- "cbsa"
+    id <- cbsa
+    name <- xw[xw$cbsa %in% cbsa, ]$cbsa_name[1]
+  }
+
+  return(tibble(
+    region.type = type,
+    region.id = id,
+    region.name = name
+  ))
+}
+
+#' tracts.from.region
+#'
+#' @param region 1-row tibble with region id/name/type, as returned by
+#'   `get.region.identifiers`.
+#' @param query_fcn function to query geos from census api. Defualt gets tracts
+#' @param ... passed onto `query_fcn`
+#'
+#' @return associated census tracts (or other geometry queried from census api)
+#'
+tracts.from.region <- function(region, query_fcn = tigris::tracts,
+                               cutout.water = F, ...) {
+
+  # get all tracts for region
+  requireNamespace("xwalks")
+
+  cts <-
+    xwalks::ctx %>%
+    filter(!!rlang::sym(region$region.type) ==
+             region$region.id)
+
+  # get tract geometries
+  .countyfps <- unique(cts$countyfp)
+  ctsf <- map_dfr(.countyfps,
+                  ~tigris::tracts(substr(.x, 1,2),
+                                  substr(.x, 3,5))
+  ) %>%
+    rename_with(tolower)
+
+  # remove water areas if appropriate
+  if(cutout.water)
+    ctsf <- download.and.cutout.water(ctsf["geoid"])
+
+  return(ctsf)
+
+}
+
+# spatial convenience -------------------------------------------------------------
 
 #' conic.transform
 #'
@@ -56,10 +134,39 @@ count.geo <- function(x) {
 
 
 
+
+# probably to-delete -----------------------------------------------------------
+
+#' attach.tract.geometry
+#'
+#' Attaches tract geometries and xwalk info to ct.pops. The reason for this function
+#' is to avoid bundling geometries with this package, as they take up a lot of space.
+#'
+#' Called from `trim.polys.by.pop` -- an important dependency and it works well, but
+#' it would improve poly fcns to delete this fcn and do this a different way
+attach.tract.geometry <- function(cts) {
+
+  # add geometries
+  out <- st_sf(
+    left_join(cts,
+              divDat::cts))
+
+  # remove water tracts with 0 or NA populations
+  out <- out %>%
+    filter(!st_is_empty(.))
+
+  return(out)
+}
+
+
+
 #' region.reorg
 #'
 #' Turns columns with i.e., cz & cz_name to region.id/region.type format that is
 #' expected in a variety of places in code that I've been writing.
+#'
+#' i may delete here; similar fcn in geoseg
+#'
 #' @param df table to rename
 #' @param region.type A column in df containing region identifiers, with column
 #'   itself indicating level or type of region.   #' not-exported region.reorg
@@ -81,26 +188,3 @@ region.reorg <- function(df, region.type) {
 
   return(out)
 }
-
-
-
-#' attach.tract.geometry
-#'
-#' Attaches tract geometries and xwalk info to ct.pops. The reason for this function
-#' is to avoid bundling geometries with this package, as they take up a lot of space.
-#' Called from `trim.polys.by.pop`
-attach.tract.geometry <- function(cts) {
-
-  # add geometries
-  out <- st_sf(
-    left_join(cts,
-              divDat::cts))
-
-  # remove water tracts with 0 or NA populations
-  out <- out %>%
-    filter(!st_is_empty(.))
-
-  return(out)
-}
-
-

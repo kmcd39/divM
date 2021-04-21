@@ -1,6 +1,47 @@
-
-
 # getting tigris water areas ---------------------------------------------------
+
+
+# from tigris/census api more directly
+
+#' get.clean.tigris.water
+#'
+#' Wraps `tigris::area_water`; takes an sf argument with an id column that follows
+#' county/tract/blockgroup census ID, so that first 2 digits are statefp and latter 3
+#' are countyfp. Downloads appropriate regions and erases them from input sf x.
+#' @param x,id.col sf object with a geoid `id.col`  (5-digit for counties; 11 for
+#'   tracts; etc.)
+#' @param size.min Minimum size in m^2, after internal boundaries are resolved (if a
+#'   water area is represented by multiple contiguous polygons)
+#'
+#' @export
+download.and.cutout.water <- function(x,
+                                      id.col = "geoid",
+                                      size.min = 5e6) {
+
+  # all 5-char state-counties
+  counties <-
+    unique(
+      pull(x, id.col)) %>%
+    substr(1, 5)
+
+  # download water
+  water <- map_dfr(counties,
+                   ~tigris::area_water(state =
+                                         substr(., 1, 2),
+                                       county =
+                                         substr(., 3, 5))
+  )
+  # union and explode water
+  water <- st_union(water) %>% st_cast("POLYGON") %>% st_sf()
+  # filter by size of union'd body
+  water <- water %>% filter(as.numeric(st_area(.$geometry)) > size.min )
+  water <- water %>% st_transform(st_crs(x))
+
+  xt <- st_difference(x, st_union(water))
+
+  return(xt)
+}
+
 
 # from sql
 
@@ -56,70 +97,13 @@ db.query.and.cutout.water <- function(con, region,
   return(water_trimmed)
 }
 
-# from tigris/census api more directly
-
-#' get.clean.tigris.water
-#'
-#' Queries a spatial database for tigris water areas and erases those water areas
-#' from the supplied region to return only land areas. I could refactor this
-#' connection to just get water areas from \code{tigris} too...
-#' @param cz,counties a character vector containing CZ or county ids. County ids
-#'   should be 5 characters (concatenated state + county fp codes). One of these
-#'   should be supplied, the other left as null.
-#' @param trim.unnamed whether or not to retain unnamed water areas. These tend to be
-#'   very small and may introduce a lot of unneeded complexity to supplied region.
-#' @param out.crs output crs. Can be left as NULL to retain default from tigris.
-#' @param ... Additional arguments passed on to \code{tigris::area_water}
-#' @importFrom tigris area_water
-#' @export
-get.clean.tigris.water <- function(czs = NULL, counties = NULL,
-                                   trim.unnamed = T, out.crs = NULL, ...) {#, trim.by.area = 1e6) {
-
-  # get corresponding counties if cz was supplied
-  if(!is.null(czs) & is.null(counties)) {
-
-    xw <- xwalks::co2cz %>% filter(cz %in% czs)
-    counties <- xw$countyfp
-  }
-
-  # separate out state and county fp codes
-  states <- substr(counties, 1,2)
-  counties <- substr(counties, 3,5)
-
-  water <-
-    purrr::map2_dfr(.x = states,
-                    .y = counties,
-                    ~tigris::area_water(state = .x,
-                                        county = .y,
-                                        ...))
-
-  # some idiosyncratic cases where a water feature is split up into many parts, only
-  # some of which have names, so this trims to all named features and those
-  # touching named features.
-  if(trim.unnamed) {
-    named <- water[!is.na(water$FULLNAME),]
-    sgbp <- st_intersects(water, named)
-    water <- water[lengths(sgbp) > 0]
-  }
-
-  # trim to size option?
-
-  # set crs if specified
-  if(!is.null(out.crs))
-    water <- water %>% st_transform(st_crs(out.crs))
-
-
-  water <- st_union(water)
-
-  return(water)
-}
 
 # open street map query ---------------------------------------------------
 
 
 #' osm.query
 #'
-#' Extracts bbox from supplied base sf then formats for osm api and extracts
+#' Extracts bbox from supplied base sf, formats for osm api and extracts
 #' requested features.
 #' @param basesf sf object to query osm over bbox of
 #' @param features osm features to request. See \code{?add_osm_feature} or

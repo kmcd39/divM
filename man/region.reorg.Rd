@@ -16,3 +16,6 @@ itself indicating level or type of region.   #' not-exported region.reorg}
 Turns columns with i.e., cz & cz_name to region.id/region.type format that is
 expected in a variety of places in code that I've been writing.
 }
+\details{
+i may delete here; similar fcn in geoseg
+}

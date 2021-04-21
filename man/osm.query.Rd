@@ -13,7 +13,7 @@ osm.query(basesf, features)
 https://wiki.openstreetmap.org/wiki/Map_Features}
 }
 \description{
-Extracts bbox from supplied base sf then formats for osm api and extracts
+Extracts bbox from supplied base sf, formats for osm api and extracts
 requested features.
 }
 \examples{

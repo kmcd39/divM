@@ -9,5 +9,8 @@ attach.tract.geometry(cts)
 \description{
 Attaches tract geometries and xwalk info to ct.pops. The reason for this function
 is to avoid bundling geometries with this package, as they take up a lot of space.
-Called from \code{trim.polys.by.pop}
+}
+\details{
+Called from \code{trim.polys.by.pop} -- an important dependency and it works well, but
+it would improve poly fcns to delete this fcn and do this a different way
 }
