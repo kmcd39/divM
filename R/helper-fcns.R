@@ -56,6 +56,8 @@ tracts.from.region <- function(region, query_fcn = tigris::tracts,
   # get all tracts for region
   requireNamespace("xwalks")
 
+  params <- list(...)
+
   cts <-
     xwalks::ctx %>%
     filter(!!rlang::sym(region$region.type) ==
@@ -64,9 +66,10 @@ tracts.from.region <- function(region, query_fcn = tigris::tracts,
   # get tract geometries
   .countyfps <- unique(cts$countyfp)
   ctsf <- map_dfr(.countyfps,
-                  ~tigris::tracts(substr(.x, 1,2),
-                                  substr(.x, 3,5))
-  ) %>%
+                  ~do.call(query_fcn,
+                           c(list(substr(.x, 1,2),
+                                   substr(.x, 3,5)),
+                             params))) %>%  # (ellipsis has to be passed onto both fcn and map calls)
     rename_with(tolower)
 
   # remove water areas if appropriate

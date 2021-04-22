@@ -62,37 +62,13 @@ tracts.across.division <- function(div,
   ct.poly <- tibble(ct.poly) %>%
     select(1,2)
 
-  # xd: cross div associate each CT with which side of the divisions. They are across
-  # a division from each other if they are on different sides
-
-
-  xda <-
-    cts["geoid"] %>%
-    left_join(ct.poly) %>%
-    rename(
-      cta = 1,
-      polya = poly.id)
-  xdb <-
-    cts["geoid"] %>%
-    left_join(ct.poly) %>%
-    rename(ctb = 1,
-           polyb = poly.id)
-
-  xd <- expand_grid(
-    xda,
-    xdb)
-
-  xd$cross.div <-
-    with(xd, polya != polyb)
-
-  return(xd)
+  return(ct.poly)
 }
 
 
 
 # wrapper ----------------------------------------------------------------------
 
-Wrapper
 
 #' wrapper flow:
 #'
@@ -103,18 +79,134 @@ Wrapper
 #'
 #' - cbinds and write/return.
 #'
+#'
+#' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
+#' @inheritParams get.region.identifiers
+#' @inheritParams tracts.from.region -...
+#' @inheritParams clean.nhpn Logical; whether or not to clean divs as if they are
+#'   NHPN hwy data by applying cleaning fcns `denode.lines` and `Fix.all.hwys`. Can
+#'   be a vector of length `divs` to clean for some measures.
 Wrapper_gen.tract.div.measures <- function(  cz = NULL,
                                              cbsa = NULL,
-                                             divs,
+                                             divs, # NAMED list
                                              cutout.water = F,
+                                             clean.nhpn = F,
                                              ...) {
+
+  params <- list(...)
 
   region <- get.region.identifiers(cz, cbsa)
   ctsf <- tracts.from.region(region,
-                             cutout.water = cutout.water)
+                             cutout.water = cutout.water,
+                             year = 2019)
+
+  ctsf <- ctsf %>% conic.transform()
+  divs <- divs %>% map( conic.transform )
+
+  # subset divs
+  divs <- map(divs,
+              ~do.call(
+                subset.polys.divs,
+                c(list(ctsf, .x), params)))
+
+  # clean divs when appropriate.
+  if(length(clean.nhpn) == 1)
+    clean.nhpn <- rep(clean.nhpn, length(divs))
+  divs <- map2(divs, clean.nhpn,
+               ~{if(.y)
+                 .x %>%
+                   denode.lines() %>%
+                   Fix.all.hwys()
+                 else .x
+                 })
+
+  cross.divs <-
+    map2(divs, names(divs),
+             ~{do.call(
+               tracts.across.division,
+               c(list(.x, region,
+                      ctsf = ctsf,
+                      cutout.water = cutout.water),
+                 params)) %>%
+                 rename(
+                   !!paste0(.y, ".poly") := poly.id)
+               })
+
+  touching.divs <-
+    map2(divs, names(divs),
+           ~{sbgp <- st_intersects(
+             ctsf,
+             .x)
+           tibble(
+             geoid = ctsf[["geoid"]],
+             !!paste0("touches.", .y) :=
+                    lengths(sbgp) > 0)
+             })
+
+  ctdivm <-
+    purrr::reduce(c(cross.divs, touching.divs),
+                  full_join,  by = "geoid")
+  return(ctdivm)
+}
 
 
 
+#' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
+#' @inheritParams get.region.identifiers
+#' @inheritParams tracts.from.region -...
+#' @inheritParams clean.nhpn Logical; whether or not to clean divs as if they are
+#'   NHPN hwy data by applying cleaning fcns `denode.lines` and `Fix.all.hwys`. Can
+#'   be a vector of length `divs` to clean for some measures.
+Wrapper_gen.tract.within.distance <- function(  cz = NULL,
+                                             cbsa = NULL,
+                                             divs, # NAMED list
+                                             cutout.water = F,
+                                             clean.nhpn = F,
+                                             ...) {
+
+  params <- list(...)
+
+  region <- get.region.identifiers(cz, cbsa)
+  ctsf <- tracts.from.region(region,
+                             cutout.water = cutout.water,
+                             year = 2019)
+
+  ctsf <- ctsf %>% conic.transform()
+  divs <- divs %>% map( conic.transform )
+
+  # subset divs
+  divs <- map(divs,
+              ~do.call(
+                subset.polys.divs,
+                c(list(ctsf, .x), params)))
+
+  # clean divs when appropriate.
+  if(length(clean.nhpn) == 1)
+    clean.nhpn <- rep(clean.nhpn, length(divs))
+  divs <- map2(divs, clean.nhpn,
+               ~{if(.y)
+                 .x %>%
+                   denode.lines() %>%
+                   Fix.all.hwys()
+                 else .x
+               })
+
+  within.dist2divs <-
+    map2(divs, names(divs),
+         ~{sbgp <- st_is_within_distance(
+           ctsf,
+           .x,
+           500)
+         tibble(
+           geoid = ctsf[["geoid"]],
+           !!paste0("within.500m.", .y) :=
+             lengths(sbgp) > 0)
+         })
+
+  ctdivm <-
+    purrr::reduce(within.dist2divs,
+                  full_join,  by = "geoid")
+  return(ctdivm)
 }
 
 
@@ -149,4 +241,30 @@ tract.proxims2div <- function(div,
              lengths(sbgp) > 0)
 
   return(ctsf)
+}
+
+
+
+unused <- function(asdf) {  # xd: cross div associate each CT with which side of the divisions. They are across
+  # a division from each other if they are on different sides
+  xda <-
+    cts["geoid"] %>%
+    left_join(ct.poly) %>%
+    rename(
+      cta = 1,
+      polya = poly.id)
+  xdb <-
+    cts["geoid"] %>%
+    left_join(ct.poly) %>%
+    rename(ctb = 1,
+           polyb = poly.id)
+
+  xd <- expand_grid(
+    xda,
+    xdb)
+
+  xd$cross.div <-
+    with(xd, polya != polyb)
+
+  return(xd)
 }
