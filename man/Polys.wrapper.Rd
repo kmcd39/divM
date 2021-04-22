@@ -7,11 +7,12 @@
 Polys.wrapper(region, div.sf, fill.gaps = T, ...)
 }
 \arguments{
+\item{region}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
+sub-division measures for}
+
 \item{...}{
   Arguments passed on to \code{\link[=subset.polys.divs]{subset.polys.divs}}, \code{\link[=Fix.all.hwys]{Fix.all.hwys}}, \code{\link[=polygonal.div]{polygonal.div}}
   \describe{
-    \item{\code{region}}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
-sub-division measures for}
     \item{\code{div.sf}}{sf object with division.}
     \item{\code{div.identifier.column}}{If 'div.sf' has an identifier column to be used to
 filter by, supply here. Must be supplied for other subset arguments to work;

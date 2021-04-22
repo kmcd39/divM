@@ -70,22 +70,26 @@ tracts.across.division <- function(div,
 # wrapper ----------------------------------------------------------------------
 
 
-#' wrapper flow:
-#'
-#' -start with cz/cbsa id -region call -> get tracts
-#'
-#' -call tracts.across.division or st_intersects or st_is_within_distance with list
-#' of divisions
-#'
-#' - cbinds and write/return.
+# wrapper flow:
+#
+# -start with cz/cbsa id -region call -> get tracts
+#
+# -call tracts.across.division or st_intersects or st_is_within_distance with list
+# of divisions
+#
+# - cbinds and write/return.
+
+#' Wrapper_gen.tract.div.measures
 #'
 #'
 #' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
 #' @inheritParams get.region.identifiers
-#' @inheritParams tracts.from.region -...
-#' @inheritParams clean.nhpn Logical; whether or not to clean divs as if they are
+#' @inheritParams tracts.from.region
+#' @param clean.nhpn Logical; whether or not to clean divs as if they are
 #'   NHPN hwy data by applying cleaning fcns `denode.lines` and `Fix.all.hwys`. Can
 #'   be a vector of length `divs` to clean for some measures.
+#'
+#' @export Wrapper_gen.tract.div.measures
 Wrapper_gen.tract.div.measures <- function(  cz = NULL,
                                              cbsa = NULL,
                                              divs, # NAMED list
@@ -151,12 +155,17 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
 
 
 
-#' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
+#' Wrapper_gen.tract.within.distance
+#'
+#'
 #' @inheritParams get.region.identifiers
-#' @inheritParams tracts.from.region -...
-#' @inheritParams clean.nhpn Logical; whether or not to clean divs as if they are
+#' @inheritParams tracts.from.region
+#' @param clean.nhpn Logical; whether or not to clean divs as if they are
 #'   NHPN hwy data by applying cleaning fcns `denode.lines` and `Fix.all.hwys`. Can
 #'   be a vector of length `divs` to clean for some measures.
+#' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
+#'
+#' @export Wrapper_gen.tract.within.distance
 Wrapper_gen.tract.within.distance <- function(  cz = NULL,
                                              cbsa = NULL,
                                              divs, # NAMED list
@@ -218,7 +227,7 @@ Wrapper_gen.tract.within.distance <- function(  cz = NULL,
 #' tracts.touching.division
 #'
 #' Wraps st_intersects so that it can be mapped across czs easily.
-#' [i think i delete this and just have a wrapper fcn that calls the others]
+#' --i think i delete this and just have a wrapper fcn that calls the others--
 #'
 #' @inheritParams tracts.across.division
 #' @param st_fcn Geometric binary predicate function; `st_intersects` by default. Use

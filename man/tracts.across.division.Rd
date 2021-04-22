@@ -4,13 +4,22 @@
 \alias{tracts.across.division}
 \title{tracts.across.division}
 \usage{
-tracts.across.division(div, ctsf, cutout.water = F, ...)
+tracts.across.division(div, region, ctsf = NULL, cutout.water = F, ...)
 }
 \arguments{
 \item{div}{sf containing only linear features. Can have national features;
 subsetted within function}
 
+\item{region}{1-row tibble with region id/name/type, as returned by
+\code{get.region.identifiers}.}
+
+\item{ctsf}{an sf object as returned by \code{tracts.from.region}. Can be NULL, in
+which case they are retrieved based on \code{region} argument}
+
 \item{...}{passed onto \code{polygonal.div}}
+}
+\value{
+
 }
 \description{
 Given a subset of CTs and a set of linear division, gets whether the tracts are

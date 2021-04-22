@@ -90,8 +90,9 @@ slurm.ray.wrapper_cbsas <- function(
 # slurm.ray.wrapper_czs ---------------------------------------------------
 
 #' slurm.ray.wrapper_czs
+#'
 #' combines Count.rays call with save.csv instructions and more slurm-friendly
-#' # parameters.
+#' parameters.
 slurm.ray.wrapper_czs <- function(
   place.geoid,
   trim2LAC = FALSE,

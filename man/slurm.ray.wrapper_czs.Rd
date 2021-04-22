@@ -2,8 +2,7 @@
 % Please edit documentation in R/Gen-measures-fcns.R
 \name{slurm.ray.wrapper_czs}
 \alias{slurm.ray.wrapper_czs}
-\title{slurm.ray.wrapper_czs
-combines Count.rays call with save.csv instructions and more slurm-friendlyparameters.}
+\title{slurm.ray.wrapper_czs}
 \usage{
 slurm.ray.wrapper_czs(
   place.geoid,
@@ -22,6 +21,6 @@ slurm.ray.wrapper_czs(
 )
 }
 \description{
-slurm.ray.wrapper_czs
-combines Count.rays call with save.csv instructions and more slurm-friendlyparameters.
+combines Count.rays call with save.csv instructions and more slurm-friendly
+parameters.
 }

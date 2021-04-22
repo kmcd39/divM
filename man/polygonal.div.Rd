@@ -17,6 +17,9 @@ polygonal.div(
 )
 }
 \arguments{
+\item{region}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
+sub-division measures for}
+
 \item{negative.buffer}{Shrink region by this amount only for calculating polygons.
 Useful for handling shpfiles w/ different resolutions, especially for regions
 along an international border. Defaults to 100m.}

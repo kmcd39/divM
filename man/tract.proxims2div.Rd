@@ -10,6 +10,9 @@ tract.proxims2div(div, ctsf, st_fcn = st_intersects, cutout.water = F, ...)
 \item{div}{sf containing only linear features. Can have national features;
 subsetted within function}
 
+\item{ctsf}{an sf object as returned by \code{tracts.from.region}. Can be NULL, in
+which case they are retrieved based on \code{region} argument}
+
 \item{st_fcn}{Geometric binary predicate function; \code{st_intersects} by default. Use
 \code{st_is_within_distance} for proximity}
 
@@ -21,4 +24,5 @@ For each CT in cz/cbsa, is the tract proximate to the division
 }
 \description{
 Wraps st_intersects so that it can be mapped across czs easily.
+--i think i delete this and just have a wrapper fcn that calls the others--
 }

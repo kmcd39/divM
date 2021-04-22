@@ -74,7 +74,7 @@ subset.polys.divs <- function(region, div.sf,
 #' also means that if a hwy ends or changes class a few meters from the cz boundary,
 #' it can still count as a division. (Operative difference in Dallas, TX, for
 #' example)
-#' @inheritParams
+#' @inheritParams subset.polys.divs
 #' @param negative.buffer Shrink region by this amount only for calculating polygons.
 #'   Useful for handling shpfiles w/ different resolutions, especially for regions
 #'   along an international border. Defaults to 100m.
