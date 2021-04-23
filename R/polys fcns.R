@@ -113,10 +113,17 @@ polygonal.div <- function(  region, divs
   initial.crs <- st_crs(divs)
 
   # return w/ 0 if no included divisions overlap
-  if( nrow(divs) == 0 )
+  # (should return.sf here if asked for)
+  if( nrow(divs) == 0 ) {
+    if(return.sf)
+      return( region %>%
+                select(region.id, region.name, region.type) %>%
+                mutate(id = 1) )
+    else
     return( abv_out(region) %>%
               select(region.id, region.name, region.type) %>%
               mutate(n.polys = 0) )
+  }
 
   # finally, calculate subdivisions
   polys <-

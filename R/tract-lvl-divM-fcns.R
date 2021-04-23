@@ -20,7 +20,6 @@ tracts.across.division <- function(div,
                                    ctsf = NULL,
                                    cutout.water = F,
                                    ...) {
-
   # get all tracts for region
   if(is.null(ctsf))
     ctsf <- tracts.from.region(region,
@@ -100,18 +99,25 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
   params <- list(...)
 
   region <- get.region.identifiers(cz, cbsa)
+
+  # print region info for diagnostics
+  cat(paste(region, collapse = " - "))
+
+  # get tracts
   ctsf <- tracts.from.region(region,
                              cutout.water = cutout.water,
                              year = 2019)
-
+  # transform for crs. Refresh crs for divs in case lost btwn systems
   ctsf <- ctsf %>% conic.transform()
+  divs <- divs %>% map( ~st_set_crs(., "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45") )
   divs <- divs %>% map( conic.transform )
 
   # subset divs
   divs <- map(divs,
               ~do.call(
                 subset.polys.divs,
-                c(list(ctsf, .x), params)))
+                c(list(ctsf, .x),
+                  params)))
 
   # clean divs when appropriate.
   if(length(clean.nhpn) == 1)
@@ -128,7 +134,8 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
     map2(divs, names(divs),
              ~{do.call(
                tracts.across.division,
-               c(list(.x, region,
+               c(list(.x,
+                      region,
                       ctsf = ctsf,
                       cutout.water = cutout.water),
                  params)) %>%
