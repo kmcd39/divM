@@ -20,9 +20,9 @@ download.and.cutout.water <- function(x,
 
   # all 5-char state-counties
   counties <-
-    unique(
-      pull(x, id.col)) %>%
-    substr(1, 5)
+    pull(x, id.col) %>%
+    substr(1, 5) %>%
+    unique()
 
   # download water
   water <- map_dfr(counties,
@@ -36,6 +36,9 @@ download.and.cutout.water <- function(x,
   # filter by size of union'd body
   water <- water %>% filter(as.numeric(st_area(.$geometry)) > size.min )
   water <- water %>% st_transform(st_crs(x))
+
+  if(nrow(water) == 0)
+    return(x)
 
   xt <- st_difference(x, st_union(water))
 
