@@ -14,24 +14,52 @@ plc
 # test call ---------------------------------------------------------------
 czs
 tmpr <- get.region.identifiers(cz = "00302")
-tmpr
-#  devtools::load_all()
 
 Wrapper_gen.tract.div.measures(cz = "00302",
                                divs =
-                                 list(int = ints
-                                      #,hwy = hwys
-                                      ),
-                               year = 2019,
-                               clean.nhpn = T
+                                 list(int = ints,
+                                      hwy = hwys),
+                               year = 2019
                                )
+
+# test call when no div passes thru the area
+
+int.eligible <- st_intersects(
+  czs, ints)
+int.eligible <-
+  czs[lengths(int.eligible) > 0, ]
+czs[!czs$cz %in% int.eligible$cz, ]
+
+# devtools::load_all()
+Wrapper_gen.tract.div.measures(cz = "00402",
+                               divs =
+                                 list(int = ints,
+                                      hwy = hwys),
+                               year = 2019
+                               )
+
+# test call where ct geometries can become invalid  (topology error)
+Wrapper_gen.tract.div.measures(cz = "10700",
+                               divs =
+                                 list(int = ints),
+                               cutout.water = T,
+                               year = 2019
+                               )
+
+devtools::load_all()
+
+czs %>% filter(as.numeric(cz) > 10600)
+tmpr <- get.region.identifiers(cz = "05201")
+tmpct <- tracts.from.region(tmpr)
+download.and.cutout.water(tmpct)
+
 # wrangle divs ------------------------------------------------------------
 
 # hwys
-#hwys <- hwys %>% filter(!is.na(SIGNT1)) %>% denode.lines() %>% Fix.all.hwys()
+hwys
 
 # interstates only
-#ints <- ints %>% denode.lines() %>% Fix.all.hwys()
+ints
 
 # Places
 state_list <- xwalks::co2cz %>% pull(statefp) %>% unique()
@@ -96,7 +124,7 @@ gen_and_save <- function(cz,
                      ,plc = plcs
                      ,school.dist = sds
                 ),
-              cutout.water = F,
+              cutout.water = T,
               year = 2019)
 
 
@@ -139,7 +167,7 @@ library(rslurm)
 btwn.ct.param <-
   tibble(
     cz = czs$cz,
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/"
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
   )
 
 
@@ -148,11 +176,11 @@ job <-
   f =
     gen_and_save,
   params = btwn.ct.param,
-  jobname = "btwn-tract-divm-cts",
+  jobname = "btwn-tract-divm-cts_watertrimmed",
   nodes = 10,
   cpus_per_node = 1,
   slurm_options = list(time = "8:00:00",
-                       "mem-per-cpu" = "20G",
+                       "mem-per-cpu" = "12G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
   add_objects = c("czs",

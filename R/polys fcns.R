@@ -120,9 +120,9 @@ polygonal.div <- function(  region, divs
                 select(region.id, region.name, region.type) %>%
                 mutate(id = 1) )
     else
-    return( abv_out(region) %>%
-              select(region.id, region.name, region.type) %>%
-              mutate(n.polys = 0) )
+      return( abv_out(region) %>%
+                select(region.id, region.name, region.type) %>%
+                mutate(n.polys = 0) )
   }
 
   # finally, calculate subdivisions

@@ -94,22 +94,26 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
                                              divs, # NAMED list
                                              cutout.water = F,
                                              clean.nhpn = F,
+                                             validate = F,
                                              ...) {
+  require(tidyverse)
+  require(sf)
+  require(lwgeom)
 
   params <- list(...)
 
   region <- get.region.identifiers(cz, cbsa)
 
   # print region info for diagnostics
-  cat(paste(region, collapse = " - "))
+  message(paste(region, collapse = " - "))
 
   # get tracts
   ctsf <- tracts.from.region(region,
                              cutout.water = cutout.water,
-                             year = 2019)
+                             ...)
+
   # transform for crs. Refresh crs for divs in case lost btwn systems
   ctsf <- ctsf %>% conic.transform()
-  divs <- divs %>% map( ~st_set_crs(., "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45") )
   divs <- divs %>% map( conic.transform )
 
   # subset divs
@@ -119,30 +123,48 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
                 c(list(ctsf, .x),
                   params)))
 
-  # clean divs when appropriate.
+
+
+  # validate geometries
+  if(validate) {
+    cat("validating geometries \n")
+
+    ctsf <- ctsf %>%
+      st_set_precision(1e5) %>%
+      st_make_valid()
+
+    divs <- map( divs,
+                 ~{.x %>%
+                     st_set_precision(1e5) %>%
+                     st_make_valid() })
+  }
+
+  # clean divs when appropriate
+  # first repeat parameter if single element)
   if(length(clean.nhpn) == 1)
     clean.nhpn <- rep(clean.nhpn, length(divs))
+
   divs <- map2(divs, clean.nhpn,
                ~{if(.y)
                  .x %>%
                    denode.lines() %>%
                    Fix.all.hwys()
-                 else .x
-                 })
+                 else
+                   .x })
 
+  # call the between-tracts measure fcn
   cross.divs <-
     map2(divs, names(divs),
              ~{do.call(
                tracts.across.division,
                c(list(.x,
                       region,
-                      ctsf = ctsf,
-                      cutout.water = cutout.water),
-                 params)) %>%
+                      ctsf = ctsf),
+                 params)) %>% # (... passed on here)
                  rename(
                    !!paste0(.y, ".poly") := poly.id)
                })
-
+  # touches-div measure
   touching.divs <-
     map2(divs, names(divs),
            ~{sbgp <- st_intersects(
