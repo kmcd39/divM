@@ -78,7 +78,7 @@ counties <- counties %>%
 # want variations, although the wrapper fcn handles a lot of options
 gen_and_save <- function(cz,
                          save.dir,
-                         save.name) {
+                         cutout.water = F) {
   require(sf)
   require(tidyverse)
   require(divM)
@@ -96,12 +96,13 @@ gen_and_save <- function(cz,
                      ,plc = plcs
                      ,school.dist = sds
                 ),
-              cutout.water = F,
+              clean.nhpn = c(T, T, F, F, F),
+              cutout.water = cutout.water,
               year = 2019)
 
 
   if(is.na(ctdivm)) {
-    message(paste0("error at cz", cz))
+    message(paste0("error at cz", cz, "\n"))
     return(-1)
   }
 
@@ -115,18 +116,18 @@ gen_and_save <- function(cz,
   save.path <- paste0(save.dir,
                       save.name)
 
-  # write (append to running list of measures)
+  # write
   write.csv(ctdivm,
             save.path,
             row.names = F)
 
-  return(ctdivm)
+  return(1)
 }
 
 czs
 
 '
-gen_and_save(cz = "00302",
+gen_and_save(cz = "00100",
              save.dir = "tests/"
              )
 '
@@ -139,7 +140,8 @@ library(rslurm)
 btwn.ct.param <-
   tibble(
     cz = czs$cz,
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/"
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/",
+    cutout.water = F
   )
 
 
@@ -166,8 +168,8 @@ job
 
 # check where didn't generate ---------------------------------------------
 
-# looks like out-of-memory exception
-sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
+#sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
+sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/"
 
 gend <- list.files(sdir, #full.names = T,
            pattern = ".csv$")
@@ -181,7 +183,28 @@ ungend <-
 ungend %>% tibble() %>%
   filter(grepl("Los", cz_name))
 
-tmpr <- get.region.identifiers(cz = "03300")
+#' a recurrent error: cz - 10102 - Thomasville Error: no applicable method for
+#' 'st_collection_extract' applied to an object of class "NULL"
+#'
+#' I think also some topology exceptions. I think mostly I am not handling
+#' no-overlap cases correctly -- yes when I try to clean hwys when none overlaps
+#' region
+
+tmpr <- get.region.identifiers(cz = "10102")
+
+ints
+# test call w/ debugger:
+# devtools::load_all()
+#debugonce(Wrapper_gen.tract.div.measures)
+Wrapper_gen.tract.div.measures(cz = "10102",
+                               divs =
+                                 list(int = ints
+                                 ),
+                               cutout.water = F,
+                               year = 2019,
+                               clean.nhpn = T,
+                               validate = F
+                               )
 
 # re-send to slurm w/ more memory
 library(rslurm)
@@ -189,19 +212,21 @@ library(rslurm)
 btwn.ct.param <-
   tibble(
     cz = ungend$cz,
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/",
+    cutout.water = F
   )
+
 
 job <-
   rslurm::slurm_apply(
     f =
       gen_and_save,
     params = btwn.ct.param,
-    jobname = "btwn-tract-divm-cts_watertrimmed2",
+    jobname = "btwn-tract-divm-cts2",
     nodes = 10,
     cpus_per_node = 1,
     slurm_options = list(time = "8:00:00",
-                         "mem-per-cpu" = "25G",
+                         "mem-per-cpu" = "18G",
                          'mail-type' = list('begin', 'end', 'fail'),
                          'mail-user' = 'km31@princeton.edu'),
     add_objects = c("czs",
@@ -211,7 +236,7 @@ job <-
   )
 
 rslurm::get_job_status(job)
-
+rslurm::cancel_slurm(job)
 
 # addl test calls ---------------------------------------------------------
 
@@ -220,6 +245,8 @@ rslurm::get_job_status(job)
 # adding "abs.validate parameter to handle these
 czs[czs$cz == "37700",]
 devtools::load_all()
+
+
 Wrapper_gen.tract.div.measures(cz = "37700",
                                divs =
                                  list(hwy = hwys
