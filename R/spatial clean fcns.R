@@ -10,9 +10,10 @@
 absolute.validate <- function(x) {
   require(sf)
   require(lwgeom)
+  x <- x %>% st_set_precision(1e5)
   x <- st_make_valid(x)
   x <- st_buffer(x, 0)
-  x <- x %>% st_set_precision(1e5)
+
   return(x)
 }
 

@@ -50,6 +50,7 @@ get.region.identifiers <- function(
 #'
 #' @return associated census tracts (or other geometry queried from census api)
 #'
+#' @export tracts.from.region
 tracts.from.region <- function(region, query_fcn = tigris::tracts,
                                cutout.water = F, ...) {
 
