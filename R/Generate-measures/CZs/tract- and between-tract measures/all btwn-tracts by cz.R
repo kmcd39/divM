@@ -70,6 +70,12 @@ counties <- counties %>%
   select(countyfp = GEOID)
 
 
+divs <-
+  list(int = ints
+     ,hwy = hwys
+     ,county = counties
+     ,plc = plcs
+     ,school.dist = sds)
 # function to gen measures and write --------------------------------------
 
 # hardcoded parameters and list of many division types to generate measures for.
@@ -78,10 +84,14 @@ counties <- counties %>%
 # want variations, although the wrapper fcn handles a lot of options
 gen_and_save <- function(cz,
                          save.dir,
+                         divs,
+                         clean.nhpn,
                          cutout.water = F) {
   require(sf)
   require(tidyverse)
   require(divM)
+
+  divs <- map(divs, ~st_set_crs(.x, "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"))
 
   safe_call <- possibly(Wrapper_gen.tract.div.measures,
                         otherwise = NA,
@@ -89,17 +99,10 @@ gen_and_save <- function(cz,
 
   ctdivm <-
     safe_call(cz = cz,
-              divs =
-                list(int = ints
-                     ,hwy = hwys
-                     ,county = counties
-                     ,plc = plcs
-                     ,school.dist = sds
-                ),
-              clean.nhpn = c(T, T, F, F, F),
+              divs = divs,
+              clean.nhpn = clean.nhpn,
               cutout.water = cutout.water,
               year = 2019)
-
 
   if(is.na(ctdivm)) {
     message(paste0("error at cz", cz, "\n"))
@@ -236,24 +239,39 @@ job <-
   )
 
 rslurm::get_job_status(job)
-rslurm::cancel_slurm(job)
+#rslurm::cancel_slurm(job)
 
 # addl test calls ---------------------------------------------------------
+
+ungend
 
 # some topology exceptions -- as in Santa Rosa, as well (w/ hwys and water
 # trimmed only)
 # adding "abs.validate parameter to handle these
+
+# additionally, sometimes points are created created when subsetting divs..
 czs[czs$cz == "37700",]
-devtools::load_all()
 
+tmpr <- get.region.identifiers(cz = "12402")
+tmpct <- tracts.from.region(tmpr) %>% divM::conic.transform()
+tmpr <- tmpr %>%
+  cbind(geometry = st_union(tmpct)) %>%
+  st_sf()
+tmpr
 
-Wrapper_gen.tract.div.measures(cz = "37700",
+tmpsd <- subset.polys.divs(tmpr, sds)
+tmpsd %>% mapview::mapview(zcol = "school.dist")
+
+sds %>% count.geo()
+tmpsd %>% count.geo()
+# devtools::load_all()
+Wrapper_gen.tract.div.measures(cz = "12402",
                                divs =
-                                 list(hwy = hwys
-                                      ),
-                               cutout.water = T,
+                                 list(school.dist = sds)
+                               ,
+                               cutout.water = F,
                                year = 2019,
-                               clean.nhpn = T,
-                               validate = T
+                               clean.nhpn = F, #c(T, T, F, F, F),
+                               validate = F
                                )
 
