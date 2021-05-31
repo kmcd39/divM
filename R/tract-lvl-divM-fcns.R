@@ -34,6 +34,11 @@ tracts.across.division <- function(div,
     cbind(geometry = st_union(ctsf)) %>%
     st_sf()
 
+  # ensure only multi/linestrings in division
+  div <- div %>%
+    filter(st_geometry_type(.) %in%
+             c("MULTILINESTRING", "LINESTRING"))
+
   # gen polys
   ppolys <-
     divM::polygonal.div(
@@ -122,11 +127,12 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
                    denode.lines() %>%
                    Fix.all.hwys()
                  else .x
-                 })
+               })
 
   cross.divs <-
     map2(divs, names(divs),
-             ~{do.call(
+             ~{#  cat(.y)
+               do.call(
                tracts.across.division,
                c(list(.x, region,
                       ctsf = ctsf,
