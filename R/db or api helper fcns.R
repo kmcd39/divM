@@ -34,7 +34,6 @@ get.water.for.region <- function(...,
 
   # filter by size of union'd body
   water <- water %>% filter(as.numeric(st_area(.$geometry)) > size.min )
-  water <- water %>% st_transform(st_crs(x))
 
   return(water)
 }
