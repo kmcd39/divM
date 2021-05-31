@@ -2,19 +2,20 @@
 % Please edit documentation in R/db or api helper fcns.R
 \name{download.and.cutout.water}
 \alias{download.and.cutout.water}
-\title{get.clean.tigris.water}
+\title{get.clean.tigris.waterN}
 \usage{
 download.and.cutout.water(x, id.col = "geoid", size.min = 5e+06)
 }
 \arguments{
-\item{x, id.col}{sf object with a geoid \code{id.col}  (5-digit for counties; 11 for
-tracts; etc.)}
-
 \item{size.min}{Minimum size in m^2, after internal boundaries are resolved (if a
 water area is represented by multiple contiguous polygons)}
+
+\item{region}{a df/tibble containing region identifiers, as created by
+\code{divM::get.region.identifiers}}
 }
 \description{
 Wraps \code{tigris::area_water}; takes an sf argument with an id column that follows
 county/tract/blockgroup census ID, so that first 2 digits are statefp and latter 3
-are countyfp. Downloads appropriate regions and erases them from input sf x.
+are countyfp. Downloads appropriate regions and erases them from input sf x. I
+think being replaced by \code{get.water.for.region}, so isn't exported.
 }

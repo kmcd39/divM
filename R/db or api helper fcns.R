@@ -1,19 +1,58 @@
+
+
 # getting tigris water areas ---------------------------------------------------
 
-
-# from tigris/census api more directly
-
-#' get.clean.tigris.water
+#' get.water.for.region
 #'
-#' Wraps `tigris::area_water`; takes an sf argument with an id column that follows
-#' county/tract/blockgroup census ID, so that first 2 digits are statefp and latter 3
-#' are countyfp. Downloads appropriate regions and erases them from input sf x.
-#' @param x,id.col sf object with a geoid `id.col`  (5-digit for counties; 11 for
-#'   tracts; etc.)
+#' Given a cz,cbsa, or county identifier/geoid, wraps `tigris::area_water` for the
+#' overlapping counties, interfacing with my `xwalks` library to get overlap.
+#' Returns all water areas above the size minimum for the given region.
+#'
+#' @param ... CZ, CBSA, county, or places, passed on to `xwalks::x2cos`
 #' @param size.min Minimum size in m^2, after internal boundaries are resolved (if a
 #'   water area is represented by multiple contiguous polygons)
 #'
+#' @return water areas for region.
+#'
 #' @export
+get.water.for.region <- function(...,
+                                 size.min = 5e6) {
+
+  requireNamespace("xwalks")
+  .countyfp <- xwalks::x2cos(...)
+
+  # download water
+  water <- map_dfr(.countyfp,
+                   ~tigris::area_water(state =
+                                         substr(., 1, 2),
+                                       county =
+                                         substr(., 3, 5))
+  )
+
+  # union and explode water
+  water <- st_union(water) %>% st_cast("POLYGON") %>% st_sf()
+
+  # filter by size of union'd body
+  water <- water %>% filter(as.numeric(st_area(.$geometry)) > size.min )
+  water <- water %>% st_transform(st_crs(x))
+
+  return(water)
+}
+
+#' get.clean.tigris.waterN
+#'
+#' Wraps `tigris::area_water`; takes an sf argument with an id column that follows
+#' county/tract/blockgroup census ID, so that first 2 digits are statefp and latter 3
+#' are countyfp. Downloads appropriate regions and erases them from input sf x. I
+#' think being replaced by `get.water.for.region`, so isn't exported.
+#'
+#' @param region a df/tibble containing region identifiers, as created by
+#'   `divM::get.region.identifiers`
+#' @param size.min Minimum size in m^2, after internal boundaries are resolved (if a
+#'   water area is represented by multiple contiguous polygons)
+#'
+#'
+#'
 download.and.cutout.water <- function(x,
                                       id.col = "geoid",
                                       size.min = 5e6) {
