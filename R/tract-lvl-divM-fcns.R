@@ -29,7 +29,7 @@ tracts.across.division <- function(div,
   # use div crs
   ctsf <- st_transform(ctsf, st_crs(div))
 
-  # union counties to get region-wide geometry
+  # union areas to get region-wide geometry
   region <- region %>%
     cbind(geometry = st_union(ctsf)) %>%
     st_sf()
@@ -50,14 +50,15 @@ tracts.across.division <- function(div,
       ppolys,
       "geoid",
       "poly.id",
-      filter.threshold = 0.01
+      filter.threshold = 0.00
     )
 
   # some CTs are split by divisions; attribute a ct to the division based on which
   # side contains the greatest share of the CT area
   ct.poly <- ct.poly %>%
     group_by(geoid) %>%
-    filter(perc.area == max(perc.area))
+    filter(perc.area == max(perc.area)) %>%
+    ungroup()
 
   ct.poly <- tibble(ct.poly) %>%
     select(1,2)
@@ -138,18 +139,21 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
 
   touching.divs <-
     map2(divs, names(divs),
-           ~{sbgp <- st_intersects(
-             ctsf,
-             .x)
-           tibble(
-             geoid = ctsf[["geoid"]],
-             !!paste0("touches.", .y) :=
-                    lengths(sbgp) > 0)
-             })
+         ~{sbgp <- st_intersects(
+           ctsf,
+           .x)
+         tibble(
+           geoid = ctsf[["geoid"]],
+           !!paste0("touches.", .y) :=
+             lengths(sbgp) > 0)
+         })
+
+  browser()
 
   ctdivm <-
     purrr::reduce(c(cross.divs, touching.divs),
                   full_join,  by = "geoid")
+
   return(ctdivm)
 }
 

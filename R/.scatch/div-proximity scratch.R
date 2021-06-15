@@ -4,7 +4,7 @@ library(sf)
 
 # santa rosa hwy topology exception ---------------------------------------
 
-# piecewise santra rosa
+# piecewise santa rosa
 srr <- get.region.ident
 srct <- tracts.from.region(region,
                            cutout.water = cutout.water,

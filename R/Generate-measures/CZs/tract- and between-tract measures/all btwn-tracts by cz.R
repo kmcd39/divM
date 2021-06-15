@@ -197,7 +197,7 @@ gen_and_save
 btwn.ct.param <-
   tibble(
     cz = ungend$cz,
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/",
+    save.dir = "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cz/",
     cutout.water = F
   )
 

@@ -32,16 +32,17 @@ plc <- plc %>% filter(!is.na(cz.id))
 cbsas <- tigris::core_based_statistical_areas(year = 2019)
 cbsas <- cbsas %>%
   select(cbsa = GEOID, cbsa_name = NAME,
-         lsad=LSAD)
+         lsad=LSAD) %>%
+  divM::conic.transform()
 
 # hwys from local ---------------------------------------------------------
 
 shp.dir <- #"~/R/shapefiles/"
    "/scratch/gpfs/km31/other-local-data/" #
 
-nphn <- st_read(paste0(shp.dir
+nhpn <- st_read(paste0(shp.dir
                        ,"National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
-nphn <- nphn %>%
+nhpn <- nhpn %>%
   select(c(div.id = 1, div.name = LNAME,
            county = CTFIPS,
            SOURCE,  # data source
@@ -58,7 +59,7 @@ nhpn[grepl("I[0-9]+", nhpn$div.name),]$SIGN1 = "I80 (bus route)"
 czs <- czs %>% divM::conic.transform()
 plc <- plc %>% st_sf() %>%  divM::conic.transform()
 cbsas <- cbsas %>% divM::conic.transform()
-nphn <- nphn %>% divM::conic.transform()
+nhpn <- nhpn %>% divM::conic.transform()
 
 # build name-geoid place index --------------------------------------------
 # plc <- filter(plc , STATEFP  == 42) %>% # (for test state)
