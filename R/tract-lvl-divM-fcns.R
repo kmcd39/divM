@@ -148,8 +148,6 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
              lengths(sbgp) > 0)
          })
 
-  browser()
-
   ctdivm <-
     purrr::reduce(c(cross.divs, touching.divs),
                   full_join,  by = "geoid")

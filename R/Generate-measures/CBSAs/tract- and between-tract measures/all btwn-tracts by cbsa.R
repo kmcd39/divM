@@ -2,8 +2,8 @@
 library(sf)
 library(tidyverse)
 
-devtools::load_all()
-# library(divM)
+#devtools::load_all()
+library(divM)
 
 rm(list=ls())
 
@@ -34,7 +34,7 @@ test.id <- cbsas$cbsa[1]
 #' way that I don't understand (when I'm using the ellipsoid geometry s2 stuff).
 #' I should change the get.spatial.overlap in xwalks so it can be more flexible
 #' with the crs, because it still seems to work with planar library.
-devtools::load_all()
+# devtools::load_all()
 
 t <- Wrapper_gen.tract.div.measures(cbsa = test.id,
                                divs =
