@@ -14,24 +14,52 @@ plc
 # test call ---------------------------------------------------------------
 czs
 tmpr <- get.region.identifiers(cz = "00302")
-tmpr
-#  devtools::load_all()
 
 Wrapper_gen.tract.div.measures(cz = "00302",
                                divs =
-                                 list(int = ints
-                                      #,hwy = hwys
-                                      ),
-                               year = 2019,
-                               clean.nhpn = T
+                                 list(int = ints,
+                                      hwy = hwys),
+                               year = 2019
                                )
+
+# test call when no div passes thru the area
+
+int.eligible <- st_intersects(
+  czs, ints)
+int.eligible <-
+  czs[lengths(int.eligible) > 0, ]
+czs[!czs$cz %in% int.eligible$cz, ]
+
+# devtools::load_all()
+Wrapper_gen.tract.div.measures(cz = "00402",
+                               divs =
+                                 list(int = ints,
+                                      hwy = hwys),
+                               year = 2019
+                               )
+
+# test call where ct geometries can become invalid  (topology error)
+Wrapper_gen.tract.div.measures(cz = "10700",
+                               divs =
+                                 list(int = ints),
+                               cutout.water = T,
+                               year = 2019
+                               )
+
+devtools::load_all()
+
+czs %>% filter(as.numeric(cz) > 10600)
+tmpr <- get.region.identifiers(cz = "05201")
+tmpct <- tracts.from.region(tmpr)
+download.and.cutout.water(tmpct)
+
 # wrangle divs ------------------------------------------------------------
 
 # hwys
-#hwys <- hwys %>% filter(!is.na(SIGNT1)) %>% denode.lines() %>% Fix.all.hwys()
+hwys
 
 # interstates only
-#ints <- ints %>% denode.lines() %>% Fix.all.hwys()
+ints
 
 # Places
 state_list <- xwalks::co2cz %>% pull(statefp) %>% unique()
@@ -70,7 +98,6 @@ counties <- counties %>%
   select(countyfp = GEOID)
 
 
-
 # function to gen measures and write --------------------------------------
 
 # hardcoded parameters and list of many division types to generate measures for.
@@ -79,7 +106,7 @@ counties <- counties %>%
 # want variations, although the wrapper fcn handles a lot of options
 gen_and_save <- function(cz,
                          save.dir,
-                         cutout.water = F) {
+                         save.name) {
   require(sf)
   require(tidyverse)
   require(divM)
@@ -88,27 +115,21 @@ gen_and_save <- function(cz,
                         otherwise = NA,
                         quiet = F)
 
-  divs <-
-    list( int = ints
-         ,hwy = hwys
-         ,county = counties
-         ,plc = plcs
-         ,school.dist = sds)
-
-  clean.nhpn <- c(T,T,F,F,F)
-
-  divs <- map(divs,
-              ~st_set_crs(.x, "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"))
-
   ctdivm <-
     safe_call(cz = cz,
-              divs = divs,
-              clean.nhpn = clean.nhpn,
-              cutout.water = cutout.water,
+              divs =
+                list(int = ints
+                     ,hwy = hwys
+                     ,county = counties
+                     ,plc = plcs
+                     ,school.dist = sds
+                ),
+              cutout.water = T,
               year = 2019)
 
+
   if(is.na(ctdivm)) {
-    message(paste0("error at cz", cz, "\n"))
+    message(paste0("error at cz", cz))
     return(-1)
   }
 
@@ -122,18 +143,18 @@ gen_and_save <- function(cz,
   save.path <- paste0(save.dir,
                       save.name)
 
-  # write
+  # write (append to running list of measures)
   write.csv(ctdivm,
             save.path,
             row.names = F)
 
-  return(1)
+  return(ctdivm)
 }
 
 czs
 
 '
-gen_and_save(cz = "00100",
+gen_and_save(cz = "00302",
              save.dir = "tests/"
              )
 '
@@ -146,8 +167,7 @@ library(rslurm)
 btwn.ct.param <-
   tibble(
     cz = czs$cz,
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/",
-    cutout.water = F
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
   )
 
 
@@ -156,11 +176,11 @@ job <-
   f =
     gen_and_save,
   params = btwn.ct.param,
-  jobname = "btwn-tract-divm-cts",
+  jobname = "btwn-tract-divm-cts_watertrimmed",
   nodes = 10,
   cpus_per_node = 1,
   slurm_options = list(time = "8:00:00",
-                       "mem-per-cpu" = "20G",
+                       "mem-per-cpu" = "12G",
                        'mail-type' = list('begin', 'end', 'fail'),
                        'mail-user' = 'km31@princeton.edu'),
   add_objects = c("czs",
@@ -174,8 +194,8 @@ job
 
 # check where didn't generate ---------------------------------------------
 
-#sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
-sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/"
+# looks like out-of-memory exception
+sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
 
 gend <- list.files(sdir, #full.names = T,
            pattern = ".csv$")
@@ -189,29 +209,27 @@ ungend <-
 ungend %>% tibble() %>%
   filter(grepl("Los", cz_name))
 
+tmpr <- get.region.identifiers(cz = "03300")
+
 # re-send to slurm w/ more memory
 library(rslurm)
-
-gen_and_save
 
 btwn.ct.param <-
   tibble(
     cz = ungend$cz,
-    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/",
-    cutout.water = F
+    save.dir = "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
   )
-
 
 job <-
   rslurm::slurm_apply(
     f =
       gen_and_save,
     params = btwn.ct.param,
-    jobname = "btwn-tract-divm-cts2",
+    jobname = "btwn-tract-divm-cts_watertrimmed2",
     nodes = 10,
     cpus_per_node = 1,
     slurm_options = list(time = "8:00:00",
-                         "mem-per-cpu" = "18G",
+                         "mem-per-cpu" = "25G",
                          'mail-type' = list('begin', 'end', 'fail'),
                          'mail-user' = 'km31@princeton.edu'),
     add_objects = c("czs",
@@ -221,43 +239,22 @@ job <-
   )
 
 rslurm::get_job_status(job)
-#rslurm::cancel_slurm(job)
+
 
 # addl test calls ---------------------------------------------------------
-
-ungend
-
-#' a recurrent error: cz - 10102 - Thomasville Error: no applicable method for
-#' 'st_collection_extract' applied to an object of class "NULL" (when wasn't
-#' handling no-div-in-region cases correctly)
 
 # some topology exceptions -- as in Santa Rosa, as well (w/ hwys and water
 # trimmed only)
 # adding "abs.validate parameter to handle these
-
-# additionally, sometimes points are created created when cropping divs..
 czs[czs$cz == "37700",]
-
-tmpr <- get.region.identifiers(cz = "12402")
-tmpct <- tracts.from.region(tmpr) %>% divM::conic.transform()
-tmpr <- tmpr %>%
-  cbind(geometry = st_union(tmpct)) %>%
-  st_sf()
-tmpr
-
-tmpsd <- subset.polys.divs(tmpr, sds)
-tmpsd %>% mapview::mapview(zcol = "school.dist")
-
-sds %>% count.geo()
-tmpsd %>% count.geo()
-# devtools::load_all()
-Wrapper_gen.tract.div.measures(cz = "12402",
+devtools::load_all()
+Wrapper_gen.tract.div.measures(cz = "37700",
                                divs =
-                                 list(school.dist = sds)
-                               ,
-                               cutout.water = F,
+                                 list(hwy = hwys
+                                      ),
+                               cutout.water = T,
                                year = 2019,
-                               clean.nhpn = F, #c(T, T, F, F, F),
-                               validate = F
+                               clean.nhpn = T,
+                               validate = T
                                )
 

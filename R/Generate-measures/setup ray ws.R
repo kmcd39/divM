@@ -1,11 +1,10 @@
-
 library(sf)
 library(tidyverse)
 library(mapview)
 library(lwgeom)
 rm(list=ls())
-# grab helper fcns --------------------------------------------------------
 
+# grab helper fcns --------------------------------------------------------
 devtools::load_all()
 
 # form czs from counties  --------------------------------------------------------
@@ -27,13 +26,22 @@ plc <- divM::largest.plc.in.cz
 
 plc <- plc %>% filter(!is.na(cz.id))
 
+
+# cbsas from tigris -----------------------------------------------------
+
+cbsas <- tigris::core_based_statistical_areas(year = 2019)
+cbsas <- cbsas %>%
+  select(cbsa = GEOID, cbsa_name = NAME,
+         lsad=LSAD)
+
 # hwys from local ---------------------------------------------------------
 
-shp.dir <-"~/R/shapefiles/"
-  #"/scratch/gpfs/km31/other-local-data/" #
-hwys <- st_read(paste0(shp.dir
+shp.dir <- #"~/R/shapefiles/"
+   "/scratch/gpfs/km31/other-local-data/" #
+
+nphn <- st_read(paste0(shp.dir
                        ,"National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
-hwys <- hwys %>%
+nphn <- nphn %>%
   select(c(div.id = 1, div.name = LNAME,
            county = CTFIPS,
            SOURCE,  # data source
@@ -42,13 +50,15 @@ hwys <- hwys %>%
            SIGNT1, SIGNN1, SIGN1,
            MILES, KM, state = STFIPS, geometry))
 
-
-
+# recode the annoying i80 bus route
+nhpn[grepl("I[0-9]+", nhpn$div.name),]$SIGNT1 = "I"
+nhpn[grepl("I[0-9]+", nhpn$div.name),]$SIGN1 = "I80 (bus route)"
 
 # set identical metered crs -----------------------------------------------
 czs <- czs %>% divM::conic.transform()
 plc <- plc %>% st_sf() %>%  divM::conic.transform()
-hwys <- hwys %>% divM::conic.transform()
+cbsas <- cbsas %>% divM::conic.transform()
+nphn <- nphn %>% divM::conic.transform()
 
 # build name-geoid place index --------------------------------------------
 # plc <- filter(plc , STATEFP  == 42) %>% # (for test state)

@@ -6,18 +6,23 @@ library(divM)
 # source(here::here("R/Generate-measures/rays/setup ray ws.R"))
 load(here::here("R/Generate-measures/ray-ws.Rdata"))
 
-ints <- hwys %>%
+ints <- nhpn %>%
   filter(SIGNT1 %in% "I")
 
+# interstates and US routes
+ints.and.us  <- nhpn %>%
+  filter(SIGNT1 %in% c("I", "U"))
+
 counties
-plc
+cbsas
+
+
 # test call ---------------------------------------------------------------
-czs
-tmpr <- get.region.identifiers(cz = "00302")
+cbsas
+tmpr <- get.region.identifiers(cbsa = "12060")
 tmpr
 #  devtools::load_all()
-
-Wrapper_gen.tract.div.measures(cz = "00302",
+t <- Wrapper_gen.tract.div.measures(cbsa = "12060",
                                divs =
                                  list(int = ints
                                       #,hwy = hwys
@@ -25,6 +30,7 @@ Wrapper_gen.tract.div.measures(cz = "00302",
                                year = 2019,
                                clean.nhpn = T
                                )
+t
 # wrangle divs ------------------------------------------------------------
 
 # hwys
