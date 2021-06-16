@@ -1,3 +1,5 @@
+#' (all except water)
+
 # setup ws ----------------------------------------------------------------
 library(sf)
 library(tidyverse)
@@ -35,7 +37,7 @@ test.id <- cbsas$cbsa[1]
 #' I should change the get.spatial.overlap in xwalks so it can be more flexible
 #' with the crs, because it still seems to work with planar library.
 # devtools::load_all()
-
+'
 t <- Wrapper_gen.tract.div.measures(cbsa = test.id,
                                divs =
                                  list(int = ints
@@ -45,7 +47,7 @@ t <- Wrapper_gen.tract.div.measures(cbsa = test.id,
                                clean.nhpn = T
                                )
 t
-
+'
 # wrangle divs ------------------------------------------------------------
 
 # hwys
@@ -154,16 +156,11 @@ gen_and_save <- function(cbsa,
 
 #cbsas
 
-t <- gen_and_save(cbsa = cbsas$cbsa[1],
-             save.dir = "tests/"
-             )
-
-t
 # seems to fail where there is no division of type..
 
 
 # generate via slurm ------------------------------------------------------
-
+'
 library(rslurm)
 btwn.ct.param <-
   tibble(
@@ -183,8 +180,8 @@ job <-
   cpus_per_node = 1,
   slurm_options = list(time = "12:00:00",
                        "mem-per-cpu" = "24G",
-                       'mail-type' = list('begin', 'end', 'fail'),
-                       'mail-user' = 'km31@princeton.edu'),
+                       "mail-type" = list("begin", "end", "fail"),
+                       "mail-user" = "km31@princeton.edu"),
   add_objects = c("cbsas",
                   "ints", "ints.and.us", "plcs",
                   "counties", "sds"
@@ -192,7 +189,7 @@ job <-
 )
 
 job
-
+'
 
 # loading della rds -------------------------------------------------------
 
@@ -218,7 +215,43 @@ ungend <-
   cbsas[!cbsas$cbsa %in% genid,]
 ungend
 
-# I think these are place missing interstates.
+# regen those after bug fix
+library(rslurm)
+btwn.ct.param <-
+  tibble(
+    cbsa = ungend$cbsa,
+    save.dir = "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/",
+    cutout.water = F
+  )
+
+
+job <-
+  rslurm::slurm_apply(
+    f =
+      gen_and_save,
+    params = btwn.ct.param,
+    jobname = "btwn-tract-divm-cts_bycbsa2",
+    nodes = 10,
+    cpus_per_node = 1,
+    slurm_options = list(time = "12:00:00",
+                         "mem-per-cpu" = "24G",
+                         'mail-type' = list('begin', 'end', 'fail'),
+                         'mail-user' = 'km31@princeton.edu'),
+    add_objects = c("cbsas",
+                    "ints", "ints.and.us", "plcs",
+                    "counties", "sds"
+    )
+  )
+
+job
+
+
+
+# troublshooting ----------------------------------------------------------
+
+
+# I think these are place missing interstates. yes, the fix hwys was throwing an
+# error (instead of giving 0 poly divs) when no divs of type intersected.
 tmpr <- ungend[1,] %>%tibble() %>%  geoseg::region.reorg("cbsa")
 tmpr <- tmpr %>% rename(region.name = cbsa_name) %>% st_sf()
 tmp <- ints %>%

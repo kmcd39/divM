@@ -1,4 +1,43 @@
 
+#' tracts.from.region
+#'
+#' @param region.ids 1-row tibble with region id/name/type, as returned by
+#'   `get.region.identifiers`.
+#' @param query_fcn function to query geos from census api. Defualt gets tracts
+#' @param ... passed onto `query_fcn`
+#'
+#' @return associated census tracts (or other geometry queried from census api)
+#'
+#' @export tracts.from.region
+tracts.from.region <- function(region, query_fcn = tigris::tracts,
+                               cutout.water = F, ...) {
+
+  # get all tracts for region
+  requireNamespace("xwalks")
+
+  params <- list(...)
+
+  cts <-
+    xwalks::ctx %>%
+    filter(!!rlang::sym(region$region.type) ==
+             region$region.id)
+
+  # get tract geometries
+  .countyfps <- unique(cts$countyfp)
+  ctsf <- map_dfr(.countyfps,
+                  ~do.call(query_fcn,
+                           c(list(substr(.x, 1,2),
+                                  substr(.x, 3,5)),
+                             params))) %>%  # (ellipsis has to be passed onto both fcn and map calls)
+    rename_with(tolower)
+
+  # remove water areas if appropriate
+  if(cutout.water)
+    ctsf <- download.and.cutout.water(ctsf["geoid"])
+
+  return(ctsf)
+
+}
 
 # getting tigris water areas ---------------------------------------------------
 

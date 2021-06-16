@@ -178,8 +178,11 @@ polygonal.div <- function(  region, divs
 #' Trims polygons by population. Helper fcn called from polygonal.div if
 #' min.population has a non-null value. Uses helpers bundled in package (and depening
 #' on divDat package) to construct tract populations.
+#'
 #' @inheritParams polygonal.div
+#'
 #' @importFrom areal aw_interpolate
+#'
 trim.polys.by.pop <- function(sub.polys, region.id,
                               region.type = "cz",
                               min.population.count = NULL,
@@ -188,7 +191,7 @@ trim.polys.by.pop <- function(sub.polys, region.id,
 
   # population-by-ct is bundled with package; attach crosswalk
   area.cts <-
-    divM::ct.pops %>%
+    divM::ct.pops %>% # (organization isn't the best; it starts with cz and I merge in CBSA)
     left_join(xwalks::ctx[,c("geoid", "cbsa")])
 
   # filter to current area based on supplied region type.
@@ -237,6 +240,7 @@ trim.polys.by.pop <- function(sub.polys, region.id,
 #' Some shapes (loops, nested loops) get a series of overlapping
 #' polygons from st_split. Example, minneapolis BTS rails. This cuts out areas
 #' so all sub polygons are non-overlapping.
+#'
 handle.overlaps <- function(x) {
   # get polygons formed from overlaps
   overlaps <- x %>%
@@ -252,10 +256,12 @@ handle.overlaps <- function(x) {
 #' Polys.wrapper
 #'
 #' Wraps all the functions used to generate the polygonal subdivision measure.
+#'
 #' @inheritParams polygonal.div
 #' @inheritDotParams subset.polys.divs
 #' @inheritDotParams Fix.all.hwys
 #' @inheritDotParams polygonal.div
+#'
 #' @export Polys.wrapper
 Polys.wrapper <- function( region, div.sf, fill.gaps = T, ...) {
 

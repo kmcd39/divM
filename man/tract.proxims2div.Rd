@@ -11,7 +11,7 @@ tract.proxims2div(div, ctsf, st_fcn = st_intersects, cutout.water = F, ...)
 subsetted within function}
 
 \item{ctsf}{an sf object as returned by \code{tracts.from.region}. Can be NULL, in
-which case they are retrieved based on \code{region} argument}
+which case they are retrieved based on \code{region.ids} argument}
 
 \item{st_fcn}{Geometric binary predicate function; \code{st_intersects} by default. Use
 \code{st_is_within_distance} for proximity}

@@ -3,34 +3,38 @@
 
 #' tracts.across.division
 #'
-#' Given a subset of CTs and a set of linear division, gets whether the tracts are
-#' across the division from one another
+#' Given a subset of CTs and a set of linear division, gets whether the tracts
+#' are across the division from one another
 #'
 #' @inheritParams tracts.from.region
 #' @param div sf containing only linear features. Can have national features;
-#'   subsetted within function
+#'  subsetted within function
 #' @param ctsf an sf object as returned by `tracts.from.region`. Can be NULL, in
-#'   which case they are retrieved based on `region` argument
+#'  which case they are retrieved based on `region.ids` argument
 #' @param ... passed onto `polygonal.div`
 #'
-#' @return
+#' @return a data.frame with one row per census tract in the supplied region,
+#'  with a geoid column and a poly.id column indicating which "polygon division"
+#'  each tract is in. Tracts with different identifiers in this column are
+#'  across a division from one another.
+#'
 #' @export tracts.across.division
 tracts.across.division <- function(div,
-                                   region,
+                                   region.ids,
                                    ctsf = NULL,
                                    cutout.water = F,
                                    ...) {
 
   # get all tracts for region
   if(is.null(ctsf))
-    ctsf <- tracts.from.region(region,
+    ctsf <- tracts.from.region(region.ids,
                                cutout.water = cutout.water)
 
   # use div crs
   ctsf <- st_transform(ctsf, st_crs(div))
 
   # union areas to get region-wide geometry
-  region <- region %>%
+  region <- region.ids %>%
     cbind(geometry = st_union(ctsf)) %>%
     st_sf()
 
@@ -68,6 +72,107 @@ tracts.across.division <- function(div,
 
 
 
+
+
+#' tracts.across.water
+#'
+#' Water divisions are areas, rather than
+#'
+#' @inheritParams tracts.across.division
+#' @param .cos counties, as downloaded from tigris. Downloads them if left as
+#'   null.
+#' @param area.floor area floor for water polygon in sq km. I think leaving at 0
+#'   and effectively filtering with the tract overlay will be best.
+#' @param write.path a file path to write output to.
+#'
+#' @export tracts.across.water
+tracts.across.water <- function(cz = NULL, cbsa = NULL,
+                                ctsf = NULL,
+                                .cos = NULL,
+                                area.floor = 0.00,
+                                write.path = NULL,
+                                ...) {
+
+  region.ids <- get.region.identifiers(cz, cbsa)
+
+  # get counties overlapping region
+  if(is.null(.cos))
+    .cos <- tigris::counties()
+
+  colnames(all.cos) <-
+    tolower(colnames(all.cos))
+
+  .cos <- sfg.seg::geo.subset.cbgs(.cos,
+                                   "geoid",
+                                   cz = cz, cbsa = cbsa)
+
+  # get tracts if not supplied
+  if(is.null(ctsf))
+    ctsf <- tracts.from.region(region.ids)
+
+  # union areas to get region-wide geometry
+  region <- region.ids %>%
+    cbind(geometry = st_union(ctsf)) %>%
+    st_sf()
+
+  # get water areas
+  .wtr <-
+    visaux::water.wrapper(.cos$geoid,
+                          x = region)
+
+  # if no water areas, skip
+  if(nrow(.wtr) == 0) {
+    ct.poly <- tibble(ctsf) %>%
+      select(geoid) %>%
+      mutate(poly.id = 1,
+             cbsa = cbsa, cz = cz)
+  } else {
+
+
+  # trim from larger region area - rnw region no water
+  .rnw <- st_difference(region,
+                        st_union(.wtr))
+
+  # explode to 1 row/polygon
+  rnw <- rnw %>% st_cast("POLYGON")
+
+  # get areas in KM^2 & filter based on floor
+  rnw$area <- st_area(rnw$geometry)
+  rnw$area <- with(rnw, as.numeric(area) / 1e6)
+  rnw <- rnw %>%
+    filter(area > area.floor) %>%
+    mutate(poly.id = row_number())
+
+  # get % area of ct in each sub poly
+  ct.poly <-
+    xwalks::get.spatial.overlap(
+      ctsf,
+      rnw,
+      "geoid",
+      "poly.id",
+      filter.threshold = 0.00
+    )
+
+  # some CTs are split by divisions; attribute a ct to the division based on which
+  # side contains the greatest share of the CT area
+  ct.poly <- ct.poly %>%
+    group_by(geoid) %>%
+    filter(perc.area == max(perc.area)) %>%
+    ungroup()
+
+  ct.poly <- tibble(ct.poly) %>%
+    select(1,2) %>%
+    mutate( cbsa = cbsa,
+            cz = cz )
+  }
+
+  if(!is.null(write.path))
+    sfg.seg::write.running.table(ct.poly,
+                                 write.path)
+
+  return(ct.poly)
+}
+
 # wrapper ----------------------------------------------------------------------
 
 
@@ -100,8 +205,9 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
 
   params <- list(...)
 
-  region <- get.region.identifiers(cz, cbsa)
-  ctsf <- tracts.from.region(region,
+  region.ids <- get.region.identifiers(cz, cbsa)
+
+  ctsf <- tracts.from.region(region.ids,
                              cutout.water = cutout.water,
                              year = 2019)
 
@@ -117,6 +223,7 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
   # clean divs when appropriate.
   if(length(clean.nhpn) == 1)
     clean.nhpn <- rep(clean.nhpn, length(divs))
+
   divs <- map2(divs, clean.nhpn,
                ~{ if( .y &
                      !is.null(.x) &
@@ -131,24 +238,13 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
     map2(divs, names(divs),
              ~{do.call(
                tracts.across.division,
-               c(list(.x, region,
+               c(list(.x, region.ids,
                       ctsf = ctsf,
                       cutout.water = cutout.water),
                  params)) %>%
                  rename(
                    !!paste0(.y, ".poly") := poly.id)
                })
-
-  touching.divs <-
-    map2(divs, names(divs),
-         ~{sbgp <- st_intersects(
-           ctsf,
-           .x)
-         tibble(
-           geoid = ctsf[["geoid"]],
-           !!paste0("touches.", .y) :=
-             lengths(sbgp) > 0)
-         })
 
   ctdivm <-
     purrr::reduce(c(cross.divs, touching.divs),
@@ -179,8 +275,8 @@ Wrapper_gen.tract.within.distance <- function(  cz = NULL,
 
   params <- list(...)
 
-  region <- get.region.identifiers(cz, cbsa)
-  ctsf <- tracts.from.region(region,
+  region.ids <- get.region.identifiers(cz, cbsa)
+  ctsf <- tracts.from.region(region.ids,
                              cutout.water = cutout.water,
                              year = 2019)
 
@@ -281,3 +377,5 @@ unused <- function(asdf) {  # xd: cross div associate each CT with which side of
 
   return(xd)
 }
+
+
