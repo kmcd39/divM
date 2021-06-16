@@ -21,35 +21,30 @@ rm(list=ls())
 # source(here::here("R/Generate-measures/rays/setup ray ws.R"))
 load(here::here("R/Generate-measures/ray-ws.Rdata"))
 
-# only generate metro areas (not micro)
-# https://www2.census.gov/geo/pdfs/reference/LSADCodes.pdf
-cbsas <- cbsas %>%
-  filter(lsad %in% "M1") %>% select(-lsad)
-
 all.cos <- tigris::counties()
 colnames(all.cos) <-
   tolower(colnames(all.cos))
+all.cos <- all.cos %>% st_transform(st_crs(czs))
 
-sfg.seg::write.running.table()
 # test runs ----------------------------------------------------------------
 '
-bw <- tracts.across.water(cbsa = "12580",
+bw <- tracts.across.water(cz = "12580",
                     .cos = all.cos
                     )
 
-tst = tracts.across.water(cbsa = cbsas$cbsa[1],
+tst = tracts.across.water(cz = czs$cz[1],
                     .cos = all.cos
                     )
 tst'
 
 # map thru ----------------------------------------------------------------
 '
-trxw <- map_dfr(cbsas$cbsa,
-                ~tracts.across.water(cbsa = .,
+trxw <- map_dfr(czs$cz,
+                ~tracts.across.water(cz = .,
                                      .cos = all.cos)
                 )
 '
-quick.cbsa.della.wrapper <- function(cbsa,
+quick.cz.della.wrapper <- function(cz,
                                      save.dir) {
 
   require(sf)
@@ -64,7 +59,7 @@ quick.cbsa.della.wrapper <- function(cbsa,
                         otherwise = NA,
                         quiet = F)
 
-  safe_call(cbsa = cbsa,
+  safe_call(cz = cz,
             .cos = all.cos,
             write.path = write.path
   )
@@ -72,39 +67,23 @@ quick.cbsa.della.wrapper <- function(cbsa,
 
 j <-
   rslurm::slurm_apply(
-    quick.cbsa.della.wrapper,
-    params = tibble(cbsa = cbsas$cbsa,
+    quick.cz.della.wrapper,
+    params = tibble(cz = czs$cz,
                     save.dir =
-                      "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/"
+                      "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cz/"
     ),
-    jobname = "cts-btwn-water_bycbsa",
+    jobname = "cts-btwn-water_bycz",
     nodes = 10,
     cpus_per_node = 1,
     slurm_options = list(time = "12:00:00",
                          "mem-per-cpu" = "10G",
                          "mail-type" = list("begin", "end", "fail"),
                          "mail-user" = "km31@princeton.edu"),
-    add_objects = c("all.cos", "cbsas")
+    add_objects = c("all.cos", "czs")
   )
 
 
 
-# check generation ----------------------------------------------------------------
-
-g <- list.files(
-  "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/",
-  pattern = "water", full.names = T)
-g <- vroom::vroom(g)
-
-gend <- g %>% count(cbsa) %>% pull(cbsa)
-cbsas
-gend
-to.gen <- cbsas[!cbsas$cbsa %in% gend, ]
+# checking ----------------------------------------------------------------
 
 
-devtools::load_all()
-
-tst  <- tracts.across.water(cbsa =
-                              to.gen$cbsa[1],
-                          .cos = all.cos
-                          )

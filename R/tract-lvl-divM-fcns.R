@@ -134,12 +134,12 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
                         st_union(.wtr))
 
   # explode to 1 row/polygon
-  rnw <- rnw %>% st_cast("POLYGON")
+  .rnw <- .rnw %>% st_cast("POLYGON")
 
   # get areas in KM^2 & filter based on floor
-  rnw$area <- st_area(rnw$geometry)
-  rnw$area <- with(rnw, as.numeric(area) / 1e6)
-  rnw <- rnw %>%
+  .rnw$area <- st_area(.rnw$geometry)
+  .rnw$area <- with(.rnw, as.numeric(area) / 1e6)
+  .rnw <- .rnw %>%
     filter(area > area.floor) %>%
     mutate(poly.id = row_number())
 
@@ -147,7 +147,7 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
   ct.poly <-
     xwalks::get.spatial.overlap(
       ctsf,
-      rnw,
+      .rnw,
       "geoid",
       "poly.id",
       filter.threshold = 0.00
