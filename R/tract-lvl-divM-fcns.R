@@ -118,7 +118,9 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
   if(length(clean.nhpn) == 1)
     clean.nhpn <- rep(clean.nhpn, length(divs))
   divs <- map2(divs, clean.nhpn,
-               ~{if(.y & !is.null(.x))
+               ~{ if( .y &
+                     !is.null(.x) &
+                     nrow(.x) > 0)
                  .x %>%
                    denode.lines() %>%
                    Fix.all.hwys()

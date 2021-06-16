@@ -198,18 +198,31 @@ job
 
 fns <- list.files("_rslurm_btwntractdivmcts_bycbsa/",
                   pattern = "results.*RDS", full.names = T)
-out <- readRDS(fns[1])
+#out <- readRDS(fns[1])
 
-# check where didn't generate ---------------------------------------------
+# check generation ---------------------------------------------
 
 #sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cz/water-trimmed/"
-sdir <- "/scratch/gpfs/km31/Generated_measures/dividedness-measures/tract-level/by-cbsa/"
+sdir <- "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/"
 
 gend <- list.files(sdir, #full.names = T,
            pattern = ".csv$")
+gend
 length(gend)
-gend <- gend %>%
+nrow(cbsas)
+
+genid <- gend %>%
   stringr::str_extract("[0-9]+")
 
-#ungend <-
-#  czs[!czs$cz %in% gend,]
+ungend <-
+  cbsas[!cbsas$cbsa %in% genid,]
+ungend
+
+# I think these are place missing interstates.
+tmpr <- ungend[1,] %>%tibble() %>%  geoseg::region.reorg("cbsa")
+tmpr <- tmpr %>% rename(region.name = cbsa_name) %>% st_sf()
+tmp <- ints %>%
+  st_crop(tmpr)
+
+polygonal.div(tmpr,
+              tmp, return.sf = T)
