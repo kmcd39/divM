@@ -4,14 +4,18 @@
 
 #' (all except water)
 
-# I turn off spherical geometry for now... Not sure if they're ironing out
-# kinks, there's an incompatibility with the GEOS on della, or if I just have to
-# learn it and update my fcns
-sf_use_s2(F)
 
 # setup ws ----------------------------------------------------------------
 library(sf)
 library(tidyverse)
+
+# I turn off spherical geometry for now... Not sure if they're ironing out
+# kinks, there's an incompatibility with the GEOS on della, or if I just have to
+# learn it and update my fcns
+sf_use_s2(F)
+# also do this for the caching?
+options(tigris_use_cache = TRUE)
+Sys.setenv("VROOM_SHOW_PROGRESS"="false")
 
 devtools::load_all()
 #library(divM)
@@ -37,11 +41,14 @@ bw <- tracts.across.water(cbsa = "12580",
                     .cos = all.cos
                     )
 
-tst = tracts.across.water(cbsa = cbsas$cbsa[1],
-                    .cos = all.cos
+tst <- tracts.across.water(cbsa = "15180"#cbsas$cbsa[10]
+                    ,.cos = all.cos
                     )
-tst'
+tst
+quick.cbsa.della.wrapper("15180",
+                         "/scratch/gpfs/km31/tests/")
 
+'
 # map thru ----------------------------------------------------------------
 '
 trxw <- map_dfr(cbsas$cbsa,
@@ -55,6 +62,8 @@ quick.cbsa.della.wrapper <- function(cbsa,
   require(sf)
   require(tidyverse)
   require(divM)
+
+  cat("generating cbsa", cbsa)
 
   write.path <-
     paste0(save.dir,
@@ -94,6 +103,7 @@ j <-
 g <- list.files(
   "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/",
   pattern = "water", full.names = T)
+g
 g <- vroom::vroom(g)
 
 gend <- g %>% count(cbsa) %>% pull(cbsa)
@@ -105,6 +115,6 @@ to.gen <- cbsas[!cbsas$cbsa %in% gend, ]
 devtools::load_all()
 
 tst  <- tracts.across.water(cbsa =
-                              to.gen$cbsa[1],
+                              to.gen$cbsa[15],
                           .cos = all.cos
                           )

@@ -7,11 +7,14 @@
 # I turn off spherical geometry for now... Not sure if they're ironing out
 # kinks, there's an incompatibility with the GEOS on della, or if I just have to
 # learn it and update my fcns
-sf_use_s2(F)
 
 # setup ws ----------------------------------------------------------------
 library(sf)
 library(tidyverse)
+sf_use_s2(F)
+# also do this for the caching?
+options(tigris_use_cache = TRUE)
+Sys.setenv("VROOM_SHOW_PROGRESS"="false")
 
 devtools::load_all()
 #library(divM)
@@ -51,6 +54,8 @@ quick.cz.della.wrapper <- function(cz,
   require(tidyverse)
   require(divM)
 
+  cat("generating cz", cz)
+
   write.path <-
     paste0(save.dir,
            "all-tracts-x-water.csv")
@@ -62,7 +67,7 @@ quick.cz.della.wrapper <- function(cz,
   safe_call(cz = cz,
             .cos = all.cos,
             write.path = write.path
-  )
+            )
 }
 
 j <-
@@ -87,3 +92,24 @@ j <-
 # checking ----------------------------------------------------------------
 
 
+g <- list.files(
+  "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cz/",
+  pattern = "water.*csv", full.names = T)
+g
+
+g <- vroom::vroom(g)
+gend <- g %>% count(cz) %>% pull(cz)
+
+
+ungend <- czs[!czs$cz %in% gend,]
+
+quick.cz.della.wrapper(ungend$cz[2],
+                       "/scratch/gpfs/km31/tests/"
+                       )
+
+
+divM::tracts.from.region(
+  divM::get.region.identifiers(cz = "00100")
+)
+
+xwalks::co2

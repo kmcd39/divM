@@ -120,14 +120,15 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
     visaux::water.wrapper(.cos$geoid,
                           x = region)
 
-  # if no water areas, skip
-  if(nrow(.wtr) == 0) {
-    ct.poly <- tibble(ctsf) %>%
-      select(geoid) %>%
-      mutate(poly.id = 1,
-             cbsa = cbsa, cz = cz)
-  } else {
+  # define a "no division" table to return early if there are none
+  no.divs <- tibble(ctsf) %>%
+    select(geoid) %>%
+    mutate(poly.id = 1,
+           cbsa = cbsa, cz = cz)
 
+  # if no water areas, skip
+  if(nrow(.wtr) == 0)
+    return(no.divs)
 
   # trim from larger region area - rnw region no water
   .rnw <- st_difference(region,
@@ -140,7 +141,13 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
   .rnw$area <- st_area(.rnw$geometry)
   .rnw$area <- with(.rnw, as.numeric(area) / 1e6)
   .rnw <- .rnw %>%
-    filter(area > area.floor) %>%
+    filter(area > area.floor)
+
+  # again, skip if no subpolys after clean
+  if(nrow(.rnw) <= 1)
+    return(no.divs)
+
+  .rnw <- .rnw %>%
     mutate(poly.id = row_number())
 
   # get % area of ct in each sub poly
@@ -164,7 +171,6 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
     select(1,2) %>%
     mutate( cbsa = cbsa,
             cz = cz )
-  }
 
   if(!is.null(write.path))
     sfg.seg::write.running.table(ct.poly,
