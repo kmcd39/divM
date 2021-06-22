@@ -13,6 +13,7 @@
 #' for the place and a map of them. Arguments are passed to wrapped fcns. Additional
 #' arguments can also be passed to mapview::mapview to change appearance of output
 #' map.
+#'
 #' @param place.geoid 7-character identifier for place to generate rays for.
 #' @inheritParams initial.hwy2ray.subset
 #' @param place.sf Sf object with `geoid` column to subset to.
@@ -28,6 +29,7 @@
 #' @inheritDotParams Get.bundled.ray.output
 #'
 #' @importFrom nngeo st_remove_holes
+#'
 #' @export Count.rays
 Count.rays <- function(place.geoid,
                        hwy.sf,

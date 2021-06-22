@@ -127,50 +127,52 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
            cbsa = cbsa, cz = cz)
 
   # if no water areas, skip
-  if(nrow(.wtr) == 0)
-    return(no.divs)
+  if(nrow(.wtr) == 0) {
+    ct.poly <- no.divs
+  } else {
 
-  # trim from larger region area - rnw region no water
-  .rnw <- st_difference(region,
-                        st_union(.wtr))
+    # trim from larger region area - rnw region no water
+    .rnw <- st_difference(region,
+                          st_union(.wtr))
 
-  # explode to 1 row/polygon
-  .rnw <- .rnw %>% st_cast("POLYGON")
+    # explode to 1 row/polygon
+    .rnw <- .rnw %>% st_cast("POLYGON")
 
-  # get areas in KM^2 & filter based on floor
-  .rnw$area <- st_area(.rnw$geometry)
-  .rnw$area <- with(.rnw, as.numeric(area) / 1e6)
-  .rnw <- .rnw %>%
-    filter(area > area.floor)
+    # get areas in KM^2 & filter based on floor
+    .rnw$area <- st_area(.rnw$geometry)
+    .rnw$area <- with(.rnw, as.numeric(area) / 1e6)
+    .rnw <- .rnw %>%
+      filter(area > area.floor)
 
-  # again, skip if no subpolys after clean
-  if(nrow(.rnw) <= 1)
-    return(no.divs)
+    # again, skip if no subpolys after clean
+    if(nrow(.rnw) <= 1)
+      return(no.divs)
 
-  .rnw <- .rnw %>%
-    mutate(poly.id = row_number())
+    .rnw <- .rnw %>%
+      mutate(poly.id = row_number())
 
-  # get % area of ct in each sub poly
-  ct.poly <-
-    xwalks::get.spatial.overlap(
-      ctsf,
-      .rnw,
-      "geoid",
-      "poly.id",
-      filter.threshold = 0.00
-    )
+    # get % area of ct in each sub poly
+    ct.poly <-
+      xwalks::get.spatial.overlap(
+        ctsf,
+        .rnw,
+        "geoid",
+        "poly.id",
+        filter.threshold = 0.00
+      )
 
-  # some CTs are split by divisions; attribute a ct to the division based on which
-  # side contains the greatest share of the CT area
-  ct.poly <- ct.poly %>%
-    group_by(geoid) %>%
-    filter(perc.area == max(perc.area)) %>%
-    ungroup()
+    # some CTs are split by divisions; attribute a ct to the division based on which
+    # side contains the greatest share of the CT area
+    ct.poly <- ct.poly %>%
+      group_by(geoid) %>%
+      filter(perc.area == max(perc.area)) %>%
+      ungroup()
 
-  ct.poly <- tibble(ct.poly) %>%
-    select(1,2) %>%
-    mutate( cbsa = cbsa,
-            cz = cz )
+    ct.poly <- tibble(ct.poly) %>%
+      select(1,2) %>%
+      mutate( cbsa = cbsa,
+              cz = cz )
+  }
 
   if(!is.null(write.path))
     sfg.seg::write.running.table(ct.poly,

@@ -34,7 +34,6 @@ all.cos <- tigris::counties()
 colnames(all.cos) <-
   tolower(colnames(all.cos))
 
-sfg.seg::write.running.table()
 # test runs ----------------------------------------------------------------
 '
 bw <- tracts.across.water(cbsa = "12580",
@@ -59,11 +58,17 @@ trxw <- map_dfr(cbsas$cbsa,
 quick.cbsa.della.wrapper <- function(cbsa,
                                      save.dir) {
 
+  # setup
   require(sf)
   require(tidyverse)
   require(divM)
 
-  cat("generating cbsa", cbsa)
+  sf_use_s2(F)
+  options(tigris_use_cache = TRUE)
+  Sys.setenv("VROOM_SHOW_PROGRESS"="false")
+
+  # run
+  cat("generating cbsa", cbsa, "\n")
 
   write.path <-
     paste0(save.dir,
@@ -78,6 +83,11 @@ quick.cbsa.della.wrapper <- function(cbsa,
             write.path = write.path
   )
 }
+
+# send to della -----------------------------------------------------------
+
+# to remove previous file.
+# file.remove("/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/all-tracts-x-water.csv")
 
 j <-
   rslurm::slurm_apply(
@@ -102,19 +112,54 @@ j <-
 
 g <- list.files(
   "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/",
-  pattern = "water", full.names = T)
+  pattern = "water.*csv", full.names = T)
 g
+
 g <- vroom::vroom(g)
-
 gend <- g %>% count(cbsa) %>% pull(cbsa)
-cbsas
 gend
-to.gen <- cbsas[!cbsas$cbsa %in% gend, ]
 
+ungend <- cbsas[!cbsas$cbsa %in% gend,]
+ungend
+
+
+# resend ungenerated ------------------------------------------------------
+
+j <-
+  rslurm::slurm_apply(
+    quick.cbsa.della.wrapper,
+    params = tibble(cbsa = ungend$cbsa,
+                    save.dir =
+                      "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/"
+    ),
+    jobname = "cts-btwn-water_bycbsa3",
+    nodes = 10,
+    cpus_per_node = 1,
+    slurm_options = list(time = "2:00:00",
+                         "mem-per-cpu" = "10G",
+                         "mail-type" = list("begin", "end", "fail"),
+                         "mail-user" = "km31@princeton.edu"),
+    add_objects = c("all.cos", "cbsas")
+  )
+
+
+# troubleshooting ---------------------------------------------------------
 
 devtools::load_all()
 
-tst  <- tracts.across.water(cbsa =
-                              to.gen$cbsa[15],
-                          .cos = all.cos
-                          )
+tst <-
+  tracts.across.water(cbsa =
+                        cbsas$cbsa[3],
+                      .cos = all.cos
+                      )
+tst %>% count(poly.id)
+
+
+tst <- quick.cbsa.della.wrapper(cbsa =
+                                  cbsas$cbsa[3],
+                                  #ungend$cbsa[4],
+                                save.dir = "/scratch/gpfs/km31/tests/")
+
+list.files("/scratch/gpfs/km31/tests/",
+           pattern = "water.*csv", full.names = T) %>%
+  read.csv()

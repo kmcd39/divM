@@ -38,7 +38,13 @@ bw <- tracts.across.water(cz = "12580",
 tst = tracts.across.water(cz = czs$cz[1],
                     .cos = all.cos
                     )
-tst'
+
+tst <- quick.cz.della.wrapper(cz = ungend$cz[1],
+                             save.dir=
+                               "/scratch/gpfs/km31/tests/")
+
+tst
+'
 
 # map thru ----------------------------------------------------------------
 '
@@ -50,11 +56,17 @@ trxw <- map_dfr(czs$cz,
 quick.cz.della.wrapper <- function(cz,
                                      save.dir) {
 
+  # setup
   require(sf)
   require(tidyverse)
   require(divM)
 
-  cat("generating cz", cz)
+  sf_use_s2(F)
+  options(tigris_use_cache = TRUE)
+  Sys.setenv("VROOM_SHOW_PROGRESS"="false")
+
+  # run
+  cat("generating cz", cz, "\n")
 
   write.path <-
     paste0(save.dir,
@@ -64,11 +76,19 @@ quick.cz.della.wrapper <- function(cz,
                         otherwise = NA,
                         quiet = F)
 
+
   safe_call(cz = cz,
             .cos = all.cos,
             write.path = write.path
             )
 }
+
+
+# send to della -----------------------------------------------------------
+
+# to remove previous file.
+# file.remove("/scratch/gpfs/km31/dividedness-measures/tract-level/by-cz/all-tracts-x-water.csv")
+
 
 j <-
   rslurm::slurm_apply(
@@ -98,10 +118,36 @@ g <- list.files(
 g
 
 g <- vroom::vroom(g)
+g %>% count(cz)
 gend <- g %>% count(cz) %>% pull(cz)
 
-
 ungend <- czs[!czs$cz %in% gend,]
+nrow(ungend) / nrow(czs)
+ungend
+# resend ungenerated ------------------------------------------------------
+
+j <-
+  rslurm::slurm_apply(
+    quick.cz.della.wrapper,
+    params = tibble(cz =
+                      ungend$cz,
+                    save.dir =
+                      "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cz/"
+    ),
+    jobname = "cts-btwn-water_bycz2",
+    nodes = 10,
+    cpus_per_node = 1,
+    slurm_options = list(time = "12:00:00",
+                         "mem-per-cpu" = "10G",
+                         "mail-type" = list("begin", "end", "fail"),
+                         "mail-user" = "km31@princeton.edu"),
+    add_objects = c("all.cos", "czs")
+  )
+
+
+
+# trouble shooting --------------------------------------------------------
+
 
 quick.cz.della.wrapper(ungend$cz[2],
                        "/scratch/gpfs/km31/tests/"

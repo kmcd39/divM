@@ -93,7 +93,6 @@ counties <- counties %>%
   select(countyfp = GEOID)
 
 
-
 # function to gen measures and write --------------------------------------
 
 # hardcoded parameters and list of many division types to generate measures for.
