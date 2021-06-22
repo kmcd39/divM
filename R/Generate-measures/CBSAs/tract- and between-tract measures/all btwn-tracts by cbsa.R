@@ -9,6 +9,12 @@ library(divM)
 
 rm(list=ls())
 
+sf_use_s2(F)
+# also do this for the caching?
+options(tigris_use_cache = TRUE)
+Sys.setenv("VROOM_SHOW_PROGRESS"="false")
+
+
 # source(here::here("R/Generate-measures/rays/setup ray ws.R"))
 load(here::here("R/Generate-measures/ray-ws.Rdata"))
 
@@ -214,8 +220,7 @@ ungend <-
   cbsas[!cbsas$cbsa %in% genid,]
 ungend
 
-# regen those after bug fix
-library(rslurm)
+# regenerate -----------------------------------------------------------------
 btwn.ct.param <-
   tibble(
     cbsa = ungend$cbsa,
@@ -258,3 +263,49 @@ tmp <- ints %>%
 
 polygonal.div(tmpr,
               tmp, return.sf = T)
+
+
+#' repeated error for those that aren't generating: ' Error: inherits(y,
+#' "sfc_LINESTRING") || inherits(y, "sfc_MULTILINESTRING") is not TRUE
+#'
+#' Apparently subset.polys.divs was sometimes returning a litle point geometry.
+#' I'm gna fix that fcn so it  filters to only linestrings
+counties
+# error at region16580
+
+ungend
+
+devtools::load_all()
+
+safe_call <- possibly(Wrapper_gen.tract.div.measures,
+                      otherwise = NA,
+                      quiet = F)
+
+divs <-
+  list( int = ints
+        ,ints.and.us = ints.and.us
+        ,county = counties
+        ,plc = plcs
+        ,school.dist = sds)
+
+clean.nhpn <- c(T,T,F,F,F)
+
+divs <- map(divs,
+            ~st_set_crs(.x, "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"))
+
+ctdivm <-
+  ungend$cbsa[2] %>%
+  Wrapper_gen.tract.div.measures(cbsa = .,
+            divs = divs,
+            clean.nhpn = clean.nhpn,
+            cutout.water = F,
+            year = 2019)
+
+counties
+ctdivm
+tmpr <-
+  divM::get.region.identifiers(cbsa = ungend[2,]$cbsa)
+tmp <- subset.polys.divs(counties, ungend[2,])
+
+tmpdc <-
+  tracts.across.division(tmp, tmpr)

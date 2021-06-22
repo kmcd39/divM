@@ -28,6 +28,11 @@ subset.polys.divs <- function(region, div.sf,
   divs <- st_crop( div.sf
                   ,region )
 
+  # trim "slivers", point geometries that might be formed by cropping
+  divs <- divs %>%
+    filter(st_geometry_type(.) %in%
+             c("LINESTRING", "MULTILINESTRING"))
+
   # End here if no hwy types excluded
   if( is.null(div.identifier.column) )
     return(divs)

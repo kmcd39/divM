@@ -25,6 +25,8 @@ tracts.across.division <- function(div,
                                    cutout.water = F,
                                    ...) {
 
+  #browser()
+
   # get all tracts for region
   if(is.null(ctsf))
     ctsf <- tracts.from.region(region.ids,
@@ -242,9 +244,11 @@ Wrapper_gen.tract.div.measures <- function(  cz = NULL,
                  else .x
                })
 
+  # get x-tract measure
   cross.divs <-
     map2(divs, names(divs),
-             ~{do.call(
+             ~{cat("\ndivision:",.y, "\n")
+               do.call(
                tracts.across.division,
                c(list(.x, region.ids,
                       ctsf = ctsf,

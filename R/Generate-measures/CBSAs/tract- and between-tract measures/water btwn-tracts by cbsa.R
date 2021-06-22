@@ -128,7 +128,8 @@ ungend
 j <-
   rslurm::slurm_apply(
     quick.cbsa.della.wrapper,
-    params = tibble(cbsa = ungend$cbsa,
+    params = tibble(cbsa =
+                      ungend$cbsa,
                     save.dir =
                       "/scratch/gpfs/km31/dividedness-measures/tract-level/by-cbsa/"
     ),
