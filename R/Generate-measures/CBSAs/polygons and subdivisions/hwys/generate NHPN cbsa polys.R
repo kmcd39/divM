@@ -36,23 +36,17 @@ sbgp <- st_intersects(cbsas, lac)
 lac.eligible <- cbsas$region.id[lengths(sbgp) > 0]
 
 # test run ----------------------------------------------------------------
+'
 tmp <-
   Polys.wrapper(
-    cbsas %>% filter(grepl("Philadelphia", region.name))
+    cbsas %>% filter(grepl("^Philadelphia", region.name))
     , lac
     , always.include = NULL
     , fill.gaps = T
     , return.sf = T )
 
-tmp %>% mapview()
-
-
-# wrapped fcn with options for variations: ---------------------------------
-?Polys.wrapper
-Polys.wrapper(cbsas[1, ]
-              , lac
-              , always.include = NULL)
-
+tmp %>% mapview(zcol = "id")
+'
 # map thru & generate measures --------------------------------------------
 
 lac.eligible
@@ -73,7 +67,7 @@ int.polys <- map_dfr(int.eligible
 # write ------------------------------------------------------------------------
 
 write.csv(lac.polys,
-          "dividedness-measures/CBSAs/polys/lac-gapfilled-hwy-polys.csv" )
+          ".local-measures/CBSAs/polys/lac-gapfilled-hwy-polys.csv" )
 
 write.csv(int.polys,
-          "dividedness-measures/CBSAs/interstates-gapfilled-hwy-polys.csv" )
+          ".local-measures/CBSAs/polys/interstates-gapfilled-hwy-polys.csv" )

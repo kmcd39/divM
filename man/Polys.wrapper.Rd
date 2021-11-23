@@ -7,8 +7,7 @@
 Polys.wrapper(region, div.sf, fill.gaps = T, ...)
 }
 \arguments{
-\item{region}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
-sub-division measures for}
+\item{region}{\code{sf} object representing neighborhoods to allocate to subdivision}
 
 \item{...}{
   Arguments passed on to \code{\link[=subset.polys.divs]{subset.polys.divs}}, \code{\link[=Fix.all.hwys]{Fix.all.hwys}}, \code{\link[=polygonal.div]{polygonal.div}}
@@ -24,22 +23,15 @@ identifier, but which intersect with divs that do.}
     \item{\code{remove.NA.divs}}{Whether or not to remove all divisions with an NA in the
 identifier column.}
     \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}
+    \item{\code{divs}}{linear \code{sf} representing divisions.}
     \item{\code{negative.buffer}}{Shrink region by this amount only for calculating polygons.
 Useful for handling shpfiles w/ different resolutions, especially for regions
 along an international border. Defaults to 100m.}
     \item{\code{min.size}}{Minimum (area) size for population, in meters. Defaults to 5e5, or
 1/2 a km^2. Set to NULL to not filter by size.}
-    \item{\code{min.population.count}}{Minimum population that must fall into a polygon
-subdivision for it to be counted. Population is interpolated from census tracts
-based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
-the filter.}
-    \item{\code{min.population.perc}}{Minimum percent \% of population that must fall into a
-polygon subdivision for it to be counted. Population is interpolated from census
-tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not
-apply the filter.}
     \item{\code{return.sf}}{If true, returns an sf object, w/ one row per polygon
-subdivision, that can easily be mapped. If false (default), returns a one row df
-for region with columns for region identifiers and number of polygons.}
+subdivision, that can easily be mapped or allocated to neighborhoods. If false
+(default), returns number of polygons.}
   }}
 }
 \description{

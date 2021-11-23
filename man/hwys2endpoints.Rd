@@ -27,7 +27,7 @@ place boundaries for it to be ray-eligible. Differs from
 \code{minimum.segment.length} in that at least one segment of hwy must meet this
 threshold for ~any~ of the segments to be eligible. Only relevant if larger than
 \code{minimum.segment.length}.}
-    \item{\code{hwy}}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+    \item{\code{hwy}}{a single hwy, i.e., with single unique sign1, after divM::denode.lines
 is run on it}
     \item{\code{return.gap.map}}{Return mapview leaflet to visualize output of fcn}
   }}

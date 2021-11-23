@@ -7,14 +7,11 @@
 tract.proxims2div(div, ctsf, st_fcn = st_intersects, cutout.water = F, ...)
 }
 \arguments{
-\item{div}{sf containing only linear features. Can have national features;
-subsetted within function}
-
-\item{ctsf}{an sf object as returned by \code{tracts.from.region}. Can be NULL, in
-which case they are retrieved based on \code{region.ids} argument}
-
 \item{st_fcn}{Geometric binary predicate function; \code{st_intersects} by default. Use
 \code{st_is_within_distance} for proximity}
+
+\item{cutout.water}{wheter or not to cut out water areas before getting
+dividedness.}
 
 \item{...}{add'l arguments passed onto Geometric binary predicate fcn and/or
 \code{subset.polys.divs}}

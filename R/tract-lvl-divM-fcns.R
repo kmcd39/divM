@@ -1,86 +1,132 @@
 
 
 
-#' tracts.across.division
+#' gen.cross.tract.dividedness
 #'
-#' Given a subset of CTs and a set of linear division, gets whether the tracts
-#' are across the division from one another
+#' Given a large region: Place, CZ, CBSA, etc., and a division object, represented by
+#' an `sf` object with only linear features, allocate each neighborhood, defined as
+#' tracts or block groups, to a side of the division within the area.
 #'
-#' @inheritParams tracts.from.region
-#' @param div sf containing only linear features. Can have national features;
-#'  subsetted within function
-#' @param ctsf an sf object as returned by `tracts.from.region`. Can be NULL, in
-#'  which case they are retrieved based on `region.ids` argument
+#'
+#' @inheritParams gen.cross.tract.dividedness
+#' @param nbd.query.fcn i.e., tracts or block_groups; passed onto
+#'   `geox::tracts.from.sf`
+#' @param region.id.colm identifer column for supplied region
+#' @param cutout.water wheter or not to cut out water areas before getting
+#'   dividedness.
 #' @param ... passed onto `polygonal.div`
 #'
-#' @return a data.frame with one row per census tract in the supplied region,
-#'  with a geoid column and a poly.id column indicating which "polygon division"
-#'  each tract is in. Tracts with different identifiers in this column are
-#'  across a division from one another.
+#' @return a data.frame with one row per census tract in the supplied region, with a
+#'   geoid column and a poly.id column indicating which "polygon division" each tract
+#'   is in. Tracts with different identifiers in this column are across a division
+#'   from one another.
 #'
-#' @export tracts.across.division
-tracts.across.division <- function(div,
-                                   region.ids,
-                                   ctsf = NULL,
-                                   cutout.water = F,
-                                   ...) {
+#' @export gen.cross.tract.dividedness
+gen.cross.tract.dividedness <- function(region
+                                        ,divs
+                                        ,nbd.query.fcn = tigris::tracts
+                                        ,region.id.colm = 'rid'
+                                        ,fill.nhpn.gaps = F
+                                        ,erase.water = F
+                                        ,year = 2019
+                                        ,...) {
 
-  #browser()
 
-  # get all tracts for region
-  if(is.null(ctsf))
-    ctsf <- tracts.from.region(region.ids,
-                               cutout.water = cutout.water)
+  require(sf)
+  requireNamespace('geox')
+
+  # browser()
 
   # use div crs
-  ctsf <- st_transform(ctsf, st_crs(div))
+  region <- region %>% st_transform(st_crs(divs))
 
-  # union areas to get region-wide geometry
-  region <- region.ids %>%
-    cbind(geometry = st_union(ctsf)) %>%
-    st_sf()
+  # crop divs to region bounding box
+  divs <- st_crop(divs, region)
 
-  # gen polys
-  ppolys <-
-    divM::polygonal.div(
-      region,
-      div,
-      ...,
-      return.sf = T) %>%
-    rename(poly.id = id)
+  # trim "slivers", point geometries that might be formed by cropping
+  divs <- divs %>%
+    filter(st_geometry_type(.) %in%
+             c("LINESTRING", "MULTILINESTRING"))
 
-  # get % area of ct in each sub poly
-  ct.poly <-
-    xwalks::get.spatial.overlap(
-      ctsf,
-      ppolys,
-      "geoid",
-      "poly.id",
-      filter.threshold = 0.00
-    )
+  # fill NHPN gaps if asked to
+  if(fill.nhpn.gaps)
+    divs <- Fix.all.hwys(divs)
 
-  # some CTs are split by divisions; attribute a ct to the division based on which
-  # side contains the greatest share of the CT area
-  ct.poly <- ct.poly %>%
+  # query nbhds; use bbox and then trim based on spatial overlap below
+  nbhds <- geox::tracts.from.sf(
+    x = st_bbox(region)
+    ,query.fcn = nbd.query.fcn
+    ,year = year
+  ) %>%
+    st_transform(st_crs(divs))
+
+  # remove only-water nbhoods
+  nbhds <- nbhds %>%
+    filter(substr(tractce
+                  ,1,2) != '99')
+
+  # validate before overlap is good.
+  nbhds <- divM::absolute.validate(nbhds)
+
+  # browser()
+
+  # trim to region (important for places)
+  nbhds <- xwalks::get.spatial.overlap(
+    nbhds, region
+    ,'geoid', region.id.colm
+    , filter.threshold = 0.10 # >=10% overlap to be included with region
+  )
+
+  if(erase.water) {
+    # not fully tested
+    water <- geox::water.wrapper(x = st_bbox(region)
+                                 ,year = year)
+    water <- st_transform(water, st_crs(nbhds))
+    nbhds <- st_difference(nbhds, st_union(water))
+    region$geometry <- st_union(nbhds)
+  }
+
+
+  # crop divs:
+  divs <- divs %>% filter(!st_is_empty(geometry))
+  divs <- divs %>% st_crop(st_bbox(region))
+
+  # div subpolys
+  subpolys <- polygonal.div( region
+                             ,divs
+                             ,return.sf = T)
+
+  require(lwgeom)
+  subpolys <- subpolys %>% st_set_precision(1e5) %>% st_make_valid()
+
+  # merge and allocate nbhoods:
+  xnhood.div <- xwalks::get.spatial.overlap(nbhds
+                                            ,subpolys
+                                            ,'geoid'
+                                            ,'poly.id')
+
+  xnhood.div <- xnhood.div %>%
     group_by(geoid) %>%
-    filter(perc.area == max(perc.area)) %>%
-    ungroup()
+    filter(perc.area ==
+             max(perc.area))
 
-  ct.poly <- tibble(ct.poly) %>%
-    select(1,2)
+  # return tibble
+  xnhood.div <- xnhood.div %>%
+    ungroup() %>%
+    tibble() %>%
+    select(-geometry) %>%
+    rename(perc.in.div = perc.area) %>%
+    mutate(poly.id =
+             factor(poly.id))
 
-  return(ct.poly)
+  return(xnhood.div)
 }
-
-
-
-
 
 #' tracts.across.water
 #'
 #' Water divisions are areas, rather than
 #'
-#' @inheritParams tracts.across.division
+#'
 #' @param .cos counties, as downloaded from tigris. Downloads them if left as
 #'   null.
 #' @param area.floor area floor for water polygon in sq km. I think leaving at 0
@@ -183,154 +229,6 @@ tracts.across.water <- function(cz = NULL, cbsa = NULL,
   return(ct.poly)
 }
 
-# wrapper ----------------------------------------------------------------------
-
-
-# wrapper flow:
-#
-# -start with cz/cbsa id -region call -> get tracts
-#
-# -call tracts.across.division or st_intersects or st_is_within_distance with list
-# of divisions
-#
-# - cbinds and write/return.
-
-#' Wrapper_gen.tract.div.measures
-#'
-#'
-#' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
-#' @inheritParams get.region.identifiers
-#' @inheritParams tracts.from.region
-#' @param clean.nhpn Logical; whether or not to clean divs as if they are
-#'   NHPN hwy data by applying cleaning fcns `denode.lines` and `Fix.all.hwys`. Can
-#'   be a vector of length `divs` to clean for some measures.
-#'
-#' @export Wrapper_gen.tract.div.measures
-Wrapper_gen.tract.div.measures <- function(  cz = NULL,
-                                             cbsa = NULL,
-                                             divs, # NAMED list
-                                             cutout.water = F,
-                                             clean.nhpn = F,
-                                             ...) {
-
-  params <- list(...)
-
-  region.ids <- get.region.identifiers(cz, cbsa)
-
-  ctsf <- tracts.from.region(region.ids,
-                             cutout.water = cutout.water,
-                             year = 2019)
-
-  ctsf <- ctsf %>% conic.transform()
-  divs <- divs %>% map( conic.transform )
-
-  # subset divs
-  divs <- map(divs,
-              ~do.call(
-                subset.polys.divs,
-                c(list(ctsf, .x), params)))
-
-  # clean divs when appropriate.
-  if(length(clean.nhpn) == 1)
-    clean.nhpn <- rep(clean.nhpn, length(divs))
-
-  divs <- map2(divs, clean.nhpn,
-               ~{ if( .y &
-                     !is.null(.x) &
-                     nrow(.x) > 0)
-                 .x %>%
-                   denode.lines() %>%
-                   Fix.all.hwys()
-                 else .x
-               })
-
-  # get x-tract measure
-  cross.divs <-
-    map2(divs, names(divs),
-             ~{cat("\ndivision:",.y, "\n")
-               do.call(
-               tracts.across.division,
-               c(list(.x, region.ids,
-                      ctsf = ctsf,
-                      cutout.water = cutout.water),
-                 params)) %>%
-                 rename(
-                   !!paste0(.y, ".poly") := poly.id)
-               })
-
-  ctdivm <-
-    purrr::reduce(c(cross.divs, touching.divs),
-                  full_join,  by = "geoid")
-
-  return(ctdivm)
-}
-
-
-
-#' Wrapper_gen.tract.within.distance
-#'
-#'
-#' @inheritParams get.region.identifiers
-#' @inheritParams tracts.from.region
-#' @param clean.nhpn Logical; whether or not to clean divs as if they are
-#'   NHPN hwy data by applying cleaning fcns `denode.lines` and `Fix.all.hwys`. Can
-#'   be a vector of length `divs` to clean for some measures.
-#' @param ... passed onto `tracts.across.division` and/or `subset.polys.divs`
-#'
-#' @export Wrapper_gen.tract.within.distance
-Wrapper_gen.tract.within.distance <- function(  cz = NULL,
-                                             cbsa = NULL,
-                                             divs, # NAMED list
-                                             cutout.water = F,
-                                             clean.nhpn = F,
-                                             ...) {
-
-  params <- list(...)
-
-  region.ids <- get.region.identifiers(cz, cbsa)
-  ctsf <- tracts.from.region(region.ids,
-                             cutout.water = cutout.water,
-                             year = 2019)
-
-  ctsf <- ctsf %>% conic.transform()
-  divs <- divs %>% map( conic.transform )
-
-  # subset divs
-  divs <- map(divs,
-              ~do.call(
-                subset.polys.divs,
-                c(list(ctsf, .x), params)))
-
-  # clean divs when appropriate.
-  if(length(clean.nhpn) == 1)
-    clean.nhpn <- rep(clean.nhpn, length(divs))
-  divs <- map2(divs, clean.nhpn,
-               ~{if(.y)
-                 .x %>%
-                   denode.lines() %>%
-                   Fix.all.hwys()
-                 else .x
-               })
-
-  within.dist2divs <-
-    map2(divs, names(divs),
-         ~{sbgp <- st_is_within_distance(
-           ctsf,
-           .x,
-           500)
-         tibble(
-           geoid = ctsf[["geoid"]],
-           !!paste0("within.500m.", .y) :=
-             lengths(sbgp) > 0)
-         })
-
-  ctdivm <-
-    purrr::reduce(within.dist2divs,
-                  full_join,  by = "geoid")
-  return(ctdivm)
-}
-
-
 
 # to delete(?) -----------------------------------------------------------------
 
@@ -341,7 +239,7 @@ Wrapper_gen.tract.within.distance <- function(  cz = NULL,
 #' Wraps st_intersects so that it can be mapped across czs easily.
 #' --i think i delete this and just have a wrapper fcn that calls the others--
 #'
-#' @inheritParams tracts.across.division
+#' @inheritParams gen.cross.tract.dividedness
 #' @param st_fcn Geometric binary predicate function; `st_intersects` by default. Use
 #'   `st_is_within_distance` for proximity
 #' @param ... add'l arguments passed onto Geometric binary predicate fcn and/or
@@ -391,3 +289,71 @@ unused <- function(asdf) {  # xd: cross div associate each CT with which side of
 }
 
 
+
+
+# wrapper flow:
+#
+# -start with cz/cbsa id -region call -> get tracts
+#
+# -call tracts.across.division or st_intersects or st_is_within_distance with list
+# of divisions
+#
+# - cbinds and write/return.
+
+
+
+#' Wrapper_gen.tract.within.distance
+#'
+#'
+#'
+Wrapper_gen.tract.within.distance <- function(  cz = NULL,
+                                                cbsa = NULL,
+                                                divs, # NAMED list
+                                                cutout.water = F,
+                                                clean.nhpn = F,
+                                                ...) {
+
+  params <- list(...)
+
+  region.ids <- get.region.identifiers(cz, cbsa)
+  ctsf <- tracts.from.region(region.ids,
+                             cutout.water = cutout.water,
+                             year = 2019)
+
+  ctsf <- ctsf %>% conic.transform()
+  divs <- divs %>% map( conic.transform )
+
+  # subset divs
+  divs <- map(divs,
+              ~do.call(
+                subset.polys.divs,
+                c(list(ctsf, .x), params)))
+
+  # clean divs when appropriate.
+  if(length(clean.nhpn) == 1)
+    clean.nhpn <- rep(clean.nhpn, length(divs))
+  divs <- map2(divs, clean.nhpn,
+               ~{if(.y)
+                 .x %>%
+                   denode.lines() %>%
+                   Fix.all.hwys()
+                 else .x
+               })
+
+  within.dist2divs <-
+    map2(divs, names(divs),
+         ~{sbgp <- st_is_within_distance(
+           ctsf,
+           .x,
+           500)
+         tibble(
+           geoid = ctsf[["geoid"]],
+           !!paste0("within.500m.", .y) :=
+             lengths(sbgp) > 0)
+         })
+
+  ctdivm <-
+    purrr::reduce(within.dist2divs,
+                  full_join,  by = "geoid")
+  return(ctdivm)
+}

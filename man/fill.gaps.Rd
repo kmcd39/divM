@@ -4,10 +4,10 @@
 \alias{fill.gaps}
 \title{fill.gaps}
 \usage{
-fill.gaps(hwy, return.gap.map = F, threshold = 200, ...)
+\method{fill}{gaps}(hwy, return.gap.map = F, threshold = 200, ...)
 }
 \arguments{
-\item{hwy}{a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+\item{hwy}{a single hwy, i.e., with single unique sign1, after divM::denode.lines
 is run on it}
 
 \item{return.gap.map}{Return mapview leaflet to visualize output of fcn}

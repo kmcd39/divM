@@ -1,51 +1,42 @@
 # get data & ws and fcns --------------------------------------------------
 rm(list=ls())
+library(tidyverse)
 library(sf)
-library(dplyr)
-library(purrr)
-library(mapview)
 library(lwgeom)
+library(mapview)
+
 devtools::load_all(export_all = F)
 
+# option setting
+sf_use_s2(F)
+options(tigris_use_cache = TRUE)
+
 # get czs
-czs <- divDat::czs %>% divM::region.reorg("cz")
+load(here::here("R/Generate-measures/ray-ws.Rdata"))
 
-# downloaded from
-# https://catalog.data.gov/dataset/national-highway-planning-network-nhpn
-shp.dir <- "~/R/shapefiles/"
-hwys <- st_read(paste0(shp.dir, "National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
-hwys <- hwys %>%
-  select(c(div.id = 1, div.name = LNAME,
-           county = CTFIPS,
-           SOURCE,  # data source
-           F_SYSTEM, FCLASS, # addl hwy classification
-           LRSKEY, # Uniquely identifies a route within a state
-           SIGNT1, SIGNN1, SIGN1,
-           MILES, KM, state = STFIPS, geometry))
+# refresh crs -------------------------------------------------------------
 
-# recode i80 bus route (I80 in name column but SIGN columns blank)
-# This includes the bus route with interstates
-hwys[grepl("I[0-9]+", hwys$div.name),]$SIGNT1 = "I"
-hwys[grepl("I[0-9]+", hwys$div.name),]$SIGN1 = "I80 (bus route)"
-hwys[grepl("I[0-9]+", hwys$div.name),]
+# sometimes gets unbundled from object when moving across systems
+st_crs(nhpn) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
+st_crs(plc) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
+st_crs(czs) <- "+proj=lcc +lon_0=-90 +lat_1=33 +lat_2=45"
 
+czs <- tibble(czs) %>% geox::region.reorg('cz', abvcols = F)
 
-# make uniform metered crs -----------------------------------------------
-czs <- czs %>% divM::conic.transform()
-hwys <- hwys %>% divM::conic.transform()
-
+czs <- czs %>% rename(region.name = cz_name)
+czsf <- st_sf(czs)
 # Limited-access proxy ---------------------------------------
-lac <- hwys %>% filter(FCLASS %in% divM::lac_codes |
+lac <- nhpn %>% filter(FCLASS %in% divM::lac_codes |
                          SIGNT1 == "I")
 
 # drop others that are still NA for SIGNT
 lac <- lac %>% filter(!is.na(SIGNT1))
 
 # get subset of CZs that have some intersection w/ interstates & lacs ------------
-sbgp <- st_intersects(czs, filter(hwys, SIGNT1 == "I"))
+sbgp <- st_intersects(czsf, filter(nhpn, SIGNT1 == "I"))
 int.eligible <- czs$region.id[lengths(sbgp) > 0]
 
-sbgp <- st_intersects(czs, lac)
+sbgp <- st_intersects(czsf, lac)
 lac.eligible <- czs$region.id[lengths(sbgp) > 0]
 
 # spot checks -------------------------------------------------------------
@@ -53,10 +44,11 @@ which(lac.eligible=="30702")
 which(lac.eligible=="00700")
 
 ?Polys.wrapper
-phl.polys <- Polys.wrapper(  region = czs[czs$region.name == "Philadelphia", ]
+
+phl.polys <- Polys.wrapper(  region = czsf[czs$region.name == "Philadelphia", ]
                              , div.sf = lac
                              , fill.gaps = T
-                             , div.idntifier.column = "SIGNT1"
+                             , div.identifier.column = "SIGNT1"
                              , always.include = NULL
                              , include.intersecting = F
                              , remove.NA.divs = T
@@ -70,6 +62,8 @@ phl.polys %>% mapview(zcol= "id")
 
 czs[czs$region.id %in% lac.eligible[1:8], ]
 
+
+' # test run
 lac.polys_test <-
   map_dfr(lac.eligible[1:8]
           , ~Polys.wrapper(  czs[czs$region.id == ., ]
@@ -87,42 +81,16 @@ lac.polys_test <-
   )
 
 lac.polys_test
-
-
-
-# map thru & generate measures --------------------------------------------
-
-
-?Polys.wrapper
-'
-# limited-access, gaps filled
-lac.polys <- map_dfr(lac.eligible
-                     , ~Polys.wrapper(czs[czs$region.id == ., ]
-                                      , lac
-                                      , always.include = NULL))
-
-
-# just interstates, gaps filled
-int.polys <- map_dfr(hwy.eligible
-                     , ~Polys.wrapper(czs[czs$region.id == ., ]
-                                      , hwys
-                                      , always.include = c("I")))
-'
-'
-write.csv(lac.polys, "intermediate saves/polys/lac-gapfilled v2.csv" )
-
-write.csv(int.polys, "intermediate saves/polys/interstates-gapfilled v2.csv" )
 '
 
-
-
-
-# quick checks ------------------------------------------------------------
+# spot checks ------------------------------------------------------------
 lac.polys[lac.polys$region.name=="Philadelphia",]
 lac.polys[lac.polys$n.polys <= 1,] # %>% nrow()
 
-czs[czs$region.id == 18600,]
 
+geox::rx %>%
+  filter(grepl("Louis",
+               cz_name))
 # checking some
 tmp <- czs[czs$region.id == 38602,] # Colville (international border issue --- solved at 80m negative buffer)
 tmp <- czs[czs$region.id == 10200,] # Albany, GA (lac hwys running through but not bisecting)
@@ -131,60 +99,52 @@ tmp <- czs[czs$region.id == 32000,] # Houston, TX
 tmp <- czs[czs$region.id == 33100,] # Dallas, TX
 tmp <- czs[czs$region.id == 19700,] # PHilly, pa
 tmp <- czs[czs$region.id == 10102,] # Hastings
+tmp  <- czs[czs$region.id == 24701,] # stL
 
-
-
-# visual check w/ hwys
-#tmph <- subset.polys.hwys(tmp, lac)
-tmph <- st_intersection(tmp, hwys)
-tmph <- denode.lines(tmph, group.cols = c("SIGNT1", "SIGN1", "FCLASS"))
-tmph
-mapview(st_boundary(
-  st_buffer(tmp, -20) ), color ="#800020") + mapview(tmph, lwd = 3
-                                                     , zcol = "FCLASS")
 
 # generating polys and checking map
-bmap <- Polys.wrapper( tmp
-                       , lac, return.map = T
-) %>% mapview(zcol = "id")
+hwtmpy <- Polys.wrapper(
+  region =  st_sf(tmp)
+  ,div.sf = nhpn
+  , div.identifier.column = "SIGNT1"
+  ,always.include = "I"
+  ,include.intersecting = F
+  , return.sf = T)
+
+hwtmpy
+
+# versus just HWYs
+hwtm <- visaux::get.NHPN(sfx =
+                           st_transform(st_sf(tmp)
+                                        ,4326))
 
 
-bmap + mapview(tmph, zcol="FCLASS")
-
-Polys.wrapper( tmp
-               , lac ) #80)
-
-
-Polys.wrapper( tmp
-               , lac
-               , negative.buffer = 10) #80)
-
-Polys.wrapper( tmp
-               , lac, return.map = T
-               ,negative.buffer=10) %>% mapview(zcol = "id")
-
-Polys.wrapper( tmp
-               , lac, return.map = T
-               ,negative.buffer=100) %>% mapview(zcol = "id")
-
-# idea of population-weighting hwy polygons?
-
-# organize variations -----------------------------------------------------
-list(lac.polys, int.polys, czs) %>% map(nrow)
-
-lac.polys %>%
-  rename(limited.access.polys = n.polys) %>%
-  left_join()
-
-int
-
-lac.polys$gaps_filled <- T
-lac.polys$hwy_subset <- "lac"
-Polys.wrapper(phl["geometry"], lac, always.include =NULL, include.intersecting = F) # lac only
-
-Polys.wrapper(phl, hwys, always.include ="I", include.intersecting = F) # interstates only
+hwtmpy
+hwtm <- hwtm %>% st_transform(st_crs(st_sf(tmp)))
+hwttm <- hwtm %>%
+  select(matches('^sign'), fclass)
+mapview(hwtmpy
+        ,zcol = 'id') +
+  mapview(hwttm
+          ,zcol = "sign1"
+          ,lwd=4.2)
 
 
-Polys.wrapper(czs[3, ]
-              , lac
-              , always.include = NULL)
+
+# i64 is missing from dataset?? --------------------------------------------
+if_any
+#isf <-
+  nhpn %>%
+  filter(
+    if_any
+
+    rowAny(across(matches('^SIGNT[1-9]')
+                  , ~.x == 'U'))
+    )
+  select(matches('^SIGNT')) %>%
+  filter
+  filter(any(vars(matches("^SIGNT[1-9]")) %in% "I64"))
+
+#vars(matches("^SIGN[1-9]"))
+                , ~.x == "I64")
+isf

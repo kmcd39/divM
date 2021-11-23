@@ -15,9 +15,6 @@ tracts.across.water(
 )
 }
 \arguments{
-\item{ctsf}{an sf object as returned by \code{tracts.from.region}. Can be NULL, in
-which case they are retrieved based on \code{region.ids} argument}
-
 \item{.cos}{counties, as downloaded from tigris. Downloads them if left as
 null.}
 
@@ -25,8 +22,6 @@ null.}
 and effectively filtering with the tract overlay will be best.}
 
 \item{write.path}{a file path to write output to.}
-
-\item{...}{passed onto \code{polygonal.div}}
 }
 \description{
 Water divisions are areas, rather than

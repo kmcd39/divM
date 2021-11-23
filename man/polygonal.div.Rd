@@ -8,17 +8,16 @@ polygonal.div(
   region,
   divs,
   negative.buffer = 100,
-  min.size = 5e+05,
-  min.population.count = NULL,
-  min.population.perc = NULL,
+  min.size = NULL,
   verbose = F,
   return.sf = F,
   ...
 )
 }
 \arguments{
-\item{region}{1-row sf polygon with \code{region.id}/\code{region.type} columns to create
-sub-division measures for}
+\item{region}{\code{sf} object representing neighborhoods to allocate to subdivision}
+
+\item{divs}{linear \code{sf} representing divisions.}
 
 \item{negative.buffer}{Shrink region by this amount only for calculating polygons.
 Useful for handling shpfiles w/ different resolutions, especially for regions
@@ -27,19 +26,9 @@ along an international border. Defaults to 100m.}
 \item{min.size}{Minimum (area) size for population, in meters. Defaults to 5e5, or
 1/2 a km^2. Set to NULL to not filter by size.}
 
-\item{min.population.count}{Minimum population that must fall into a polygon
-subdivision for it to be counted. Population is interpolated from census tracts
-based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
-the filter.}
-
-\item{min.population.perc}{Minimum percent \% of population that must fall into a
-polygon subdivision for it to be counted. Population is interpolated from census
-tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not
-apply the filter.}
-
 \item{return.sf}{If true, returns an sf object, w/ one row per polygon
-subdivision, that can easily be mapped. If false (default), returns a one row df
-for region with columns for region identifiers and number of polygons.}
+subdivision, that can easily be mapped or allocated to neighborhoods. If false
+(default), returns number of polygons.}
 }
 \description{
 Given a boundary and corresponding divisions within boundary,  finds number of

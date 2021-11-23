@@ -17,16 +17,13 @@ trim.polys.by.pop(
 \item{min.population.count}{Minimum population that must fall into a polygon
 subdivision for it to be counted. Population is interpolated from census tracts
 based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not apply
-the filter.}
+the filter. *Note the pop filters may use outdated code that may be broken due
+to changes elsewhere.}
 
 \item{min.population.perc}{Minimum percent \% of population that must fall into a
 polygon subdivision for it to be counted. Population is interpolated from census
 tracts based on \% area overlap of CT within sub-polygon. Set to NULL or 0 to not
 apply the filter.}
-
-\item{return.sf}{If true, returns an sf object, w/ one row per polygon
-subdivision, that can easily be mapped. If false (default), returns a one row df
-for region with columns for region identifiers and number of polygons.}
 }
 \description{
 Trims polygons by population. Helper fcn called from polygonal.div if

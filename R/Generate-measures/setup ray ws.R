@@ -37,8 +37,8 @@ cbsas <- cbsas %>%
 
 # hwys from local ---------------------------------------------------------
 
-shp.dir <- #"~/R/shapefiles/"
-   "/scratch/gpfs/km31/other-local-data/" #
+shp.dir <- "~/R/shapefiles/"
+   #"/scratch/gpfs/km31/other-local-data/" #
 
 nhpn <- st_read(paste0(shp.dir
                        ,"National_Highway_Planning_Network-shp/National_Highway_Planning_Network.shp"))
@@ -48,7 +48,7 @@ nhpn <- nhpn %>%
            SOURCE,  # data source
            F_SYSTEM, FCLASS, # addl hwy classification
            LRSKEY, # Uniquely identifies a route within a state
-           SIGNT1, SIGNN1, SIGN1,
+           matches("^SIGN"),
            MILES, KM, state = STFIPS, geometry))
 
 # recode the annoying i80 bus route
@@ -77,3 +77,4 @@ plc$name <- plc$plc.name
 save.image(
   here::here("R/Generate-measures/ray-ws.Rdata")
   )
+

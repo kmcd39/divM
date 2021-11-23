@@ -4,7 +4,12 @@
 \alias{denode.lines}
 \title{denode.lines}
 \usage{
-denode.lines(x, group.cols = c("SIGNT1", "SIGN1"))
+denode.lines(x, group.cols)
+}
+\arguments{
+\item{x}{an \code{sf} multi/linestring object to collapse}
+
+\item{group.cols}{grouping columns to merge /union by.}
 }
 \description{
 Dissolves constitutive line segments into longer lines wherever possible.

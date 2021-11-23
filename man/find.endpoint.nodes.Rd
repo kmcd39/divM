@@ -4,7 +4,7 @@
 \alias{find.endpoint.nodes}
 \title{find.endpoint.nodes}
 \usage{
-find.endpoint.nodes(x, line.ids = c("SIGNT1", "SIGN1"))
+find.endpoint.nodes(x, line.ids = c("signt1", "sign1"))
 }
 \description{
 Gets all endpoints of all lines of a LINESTRING sf object. Returns an sf object

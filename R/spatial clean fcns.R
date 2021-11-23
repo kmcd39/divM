@@ -6,7 +6,8 @@
 #' geometries are not only valid, but remain so after st_intersection or other
 #' manipulations. Buffer 0 trick is useful for these case but can alter
 #' geometry: https://github.com/r-spatial/sf/issues/347
-#' @export
+#'
+#' @export absolute.validate
 absolute.validate <- function(x) {
   require(sf)
   require(lwgeom)
@@ -24,8 +25,12 @@ absolute.validate <- function(x) {
 #' Dissolves constitutive line segments into longer lines wherever possible.
 #' Specify in \code{group.cols} which columns should be kept in output. Workflow
 #' of function is: Union -> merge -> explode -> add ids.
-#' @export
-denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
+#'
+#' @param x an `sf` multi/linestring object to collapse
+#' @param group.cols grouping columns to merge /union by.
+#'
+#' @export denode.lines
+denode.lines <- function(x, group.cols) {
 
   if (nrow(x) == 0) return(x)
 
@@ -41,8 +46,8 @@ denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
   xploded.x <- x %>%
     st_cast("LINESTRING")
 
-  # sometimes add'l linemerging requied (i forget exactly logic, but remember there
-  # was a weird case to catch; should've documented better then)
+  # sometimes add'l linemerging requied-- if grouping creates non-line geometries(?).
+  # I think this could be improved, but remember catching weird edge cases
   if (nrow(grpd.x) == nrow(xploded.x)) {
     x$id = 1:nrow(x)
     return(x)
@@ -65,8 +70,9 @@ denode.lines <- function(x, group.cols = c("SIGNT1", "SIGN1")) {
 #' line segments that start or end with that node.
 #' Requires an "id" column in segment sf.
 #' adopts workflow from https://www.r-spatial.org/r/2019/09/26/spatial-networks.html
-#' @export
-find.endpoint.nodes <- function(x, line.ids = c("SIGNT1", "SIGN1")) {
+#'
+#' @export find.endpoint.nodes
+find.endpoint.nodes <- function(x, line.ids = c("signt1", "sign1")) {
 
   # no endpoints if no lines
   if(nrow(x) == 0)
@@ -125,16 +131,18 @@ find.endpoint.nodes <- function(x, line.ids = c("SIGNT1", "SIGN1")) {
 #' Uses segment endpoints and connects those within threshold distance. Creates
 #' continuous line that I think is more appropriate. First two arguments
 #' are taken from call within fill.gaps.
+#'
 #' @param threshold Threshold in crs units. Fill gap if distance between endpoint of
 #'   given edge and another in \code{lines} is < this threshold.
+#'
 fill.single.gap <- function(edge, nodes, threshold = 200) {
 
   # add meters to threshold
-  threshold = units::set_units(threshold, "m")
+  threshold <- units::set_units(threshold, "m")
 
   # for given edge, find nearest start/endpoint that is not a part of given edge
-  eligible.nodes = nodes[!nodes$nodeID %in% edge$nodeID,]
-  neasest.to.i.nodes = edge %>%
+  eligible.nodes  <- nodes[!nodes$nodeID %in% edge$nodeID,]
+  neasest.to.i.nodes <- edge %>%
     st_nearest_feature(eligible.nodes)
 
   # get nearest node(s) on other edges
@@ -170,7 +178,7 @@ fill.single.gap <- function(edge, nodes, threshold = 200) {
 #' expects nhpn hwy data. The purpose is that if a highway has a short break
 #' (<threshold) in the middle, this allows the polygon measure to ignore a short break.
 #' Call with \code{return.gap.map=T} to visualize what it does.
-#' @param hwy a single hwy, i.e., with single unique SIGN1, after divM::denode.lines
+#' @param hwy a single hwy, i.e., with single unique sign1, after divM::denode.lines
 #'   is run on it
 #' @param return.gap.map Return mapview leaflet to visualize output of fcn
 #' @inheritDotParams fill.single.gap
@@ -178,8 +186,8 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
 
   require(lwgeom)
 
-  hwy.type <- unique(hwy$SIGNT1)
-  hwy.id <- unique(hwy$SIGN1)
+  hwy.type <- unique(hwy$signt1)
+  hwy.id <- unique(hwy$sign1)
 
   # subset to non-loops
   # (loops are rare but problematic. One example -- S213 in Boston.
@@ -188,7 +196,7 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
 
   # if no more than 1 non-loop segment, return early (no gaps to fill)
   if( nrow(delooped) <= 1 ) {
-    out <- hwy %>% select(SIGN1, SIGNT1, geometry) %>% mutate(id = 1)
+    out <- hwy %>% select(sign1, signt1, geometry) %>% mutate(id = 1)
     return(out)
   }
 
@@ -217,8 +225,8 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
                             fillers) %>%
     st_union() %>%
     st_line_merge() %>%
-    st_sf(SIGNT1 = hwy.type
-          ,SIGN1 = hwy.id
+    st_sf(signt1 = hwy.type
+          ,sign1 = hwy.id
           ,geometry = .)
 
   continuous.hwy$id <- 1:nrow(continuous.hwy)
@@ -229,7 +237,7 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
 #' Fix all hwys
 #'
 #' Fixes all hwys in place from raw data from subset of raw nhpn data. Note these
-#' functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
+#' functions expect NHPN format, i.e., signt1 and SIGNN1 columns as identifiers.
 #' @inheritParams fill.gaps
 #' @import purrr
 #'
@@ -237,8 +245,8 @@ fill.gaps <- function(hwy, return.gap.map = F, threshold = 200, ...) {
 Fix.all.hwys <- function(hwys, threshold = 200, return.gap.map = F, ...) {
 
   dn.hwy <- hwys %>%
-    split(.$SIGN1) %>%
-    purrr::imap( ~denode.lines(.) )
+    split(.$signt1) %>%
+    purrr::imap( ~denode.lines(., group.cols = c('signt1', 'sign1')) )
 
   hwy <- dn.hwy %>%
     purrr::imap( ~fill.gaps(., threshold = threshold,

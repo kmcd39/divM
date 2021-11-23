@@ -1,46 +1,6 @@
 
 # region construction and tigris retrievals ------------------------------------
 
-#' get.region.identifiers
-#'
-#' Gets region.id/region.name and attaches to region.type, to get bundled region id
-#' information in format expected by other functions.
-#'
-#' @param cz,cbsa one of a cz or cbsa identifier code (either 5-digit # or 5-char
-#'   numeric)
-#'
-#' @return a 1-row tibble that organizes the region id/name/type
-#'
-#' @export
-get.region.identifiers <- function(
-  cz = NULL,
-  cbsa = NULL) {
-
-  requireNamespace("xwalks")
-
-  if (is.null(c(cz, cbsa)))
-    stop("no non-null arguments")
-
-  if (!is.null(cz)) {
-    xw <- xwalks::co2cz
-    type <- "cz"
-    id <- cz
-    name <- xw[xw$cz %in% cz, ]$cz_name[1]
-
-  } else if (!is.null(cbsa)) {
-    xw <- xwalks::co2cbsa
-    type <- "cbsa"
-    id <- cbsa
-    name <- xw[xw$cbsa %in% cbsa, ]$cbsa_name[1]
-  }
-
-  return(tibble(
-    region.type = type,
-    region.id = id,
-    region.name = name
-  ))
-}
-
 
 # spatial convenience -------------------------------------------------------------
 

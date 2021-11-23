@@ -11,5 +11,5 @@ Fix.all.hwys(hwys, threshold = 200, return.gap.map = F, ...)
 }
 \description{
 Fixes all hwys in place from raw data from subset of raw nhpn data. Note these
-functions expect NHPN format, i.e., SIGNT1 and SIGNN1 columns as identifiers.
+functions expect NHPN format, i.e., signt1 and SIGNN1 columns as identifiers.
 }

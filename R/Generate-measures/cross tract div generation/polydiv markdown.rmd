@@ -1,0 +1,155 @@
+---
+title: "generating neighborhood divisions markdown"
+author: "kira"
+date: "11/22/2021"
+output:
+  html_document:
+     toc: true
+     theme: cerulean
+     highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T,
+                      fig.width=6, fig.height=5
+                      ,message = FALSE
+                      ,warning = FALSE)
+
+proj.dir <- #"~/R/all sharkey geoseg work/divseg/R/visuals & mkdwns/"
+  "~/R/all sharkey geoseg work/divM/"
+# ---------------------------------------------------------------------------
+rm(list = ls())
+require(tidyverse)
+require(sf)
+library(mapview)
+
+# option setting
+sf_use_s2(T)
+options(tigris_use_cache = TRUE)
+
+devtools::load_all()
+```
+
+## Ascribing Neighborhood dividedness
+
+This markdown shows the workflow and functions for allocating neighborhood (nbhd) dividedness. 
+
+This package bundles a couple functions to query nbhds within a region, and allocate each to a sub-area bounded by a type of division. For example, localities or school districts within a metro area, sides of a interstate/highway relative to one another, or other linear divisions that might be considered.
+
+
+### Sample call
+
+#### CZ
+
+The function can be called like:
+
+```{r sample}
+
+# I use my helper library geox (see below for installation)
+
+# define a place to get nbhd divisions for 
+czsf <- geox::build.CZs('20100') # Portland, ME commuting zone
+
+# get divisions that can be overlaid 
+hwys <- geox::get.NHPN(sfx = st_transform(czsf, 4326))
+
+devtools::load_all()
+
+# allocate census tracts to sub-area divisions, using just interstates
+nb.div <- divM::gen.cross.tract.dividedness(
+  region = czsf
+  ,divs = filter(hwys, signt1 == 'I')
+  ,nbd.query.fcn = tigris::tracts
+  ,fill.nhpn.gaps = T
+  ,region.id.colm = 'cz'
+  ,erase.water = F
+  ,year = 2019
+  )
+
+# this object represents neighborhood dividedness in the region.
+nb.div
+
+```
+
+The `nb.div` object, which represents neighborhood dividedness in the region has a `geoid` column for tract or block group identifier, a `poly.id` column for the sub-polygon division, and a `perc.in.div` column for the percentage of the neighborhood within the identified sub-polygon division. 
+
+We can visualize the neighborhood allocation like:
+
+```{r smplczvis}
+
+nb.divsf <- nb.div %>% geox::attach.geos(query.fcn = tigris::tracts, year = 2019)
+
+ggplot() +
+  geom_sf(data = nb.divsf
+          ,aes(fill = poly.id)
+          ,color = 'white', size = .6
+          ,alpha = .5) +
+  geom_sf(data =  filter(hwys, signt1 == 'I')
+          ,aes(color = signt1)
+          ,size = 1.3) +
+  #scale_fill_discrete(guide= 'none') +
+  theme_void()
+
+```
+
+The pre-generated cross-tract or cross-blockgroup dividedness datasets are generated using Della scripts that just iterate through different regions.
+
+The example, and the function itself, lean on `geox`, a helper library I wrote that has a lot of convenience functions working with census spatial data, querying through the `tigris` library, and referencing CZs and CBSAs.
+
+To install this library, use:
+`devtools::install_github("https://github.com/kmcd39/geox.git")`
+Github link: https://github.com/kmcd39/geox/tree/main/R
+
+#### City-level variation
+
+Variations are easy to generate, with different regions or divisions objects. For example, here's a separate generation block-group dividedness within the city of Portland (rather than tracts within the commuting zone). We can also use all highways instead of just interstates
+
+```{r plc.sample}
+# get all places in the Portland CZ
+plcs <- geox::places.wrapper(x = czsf)
+
+# filter to just portland
+smplc <- plcs %>%
+  filter(grepl('^Portland', name)) %>%
+  st_transform(4326)
+
+# allocate block groups to sub-area divisions, using all hwys
+nb.plc.div <- divM::gen.cross.tract.dividedness(
+  region = smplc
+  ,divs = hwys
+  ,nbd.query.fcn = tigris::block_groups
+  ,fill.nhpn.gaps = T
+  ,region.id.colm = 'placefp'
+  ,erase.water = F
+  ,year = 2019
+  )
+
+nb.plc.div
+
+# get background tiles for vis this time
+sttm <- visaux::get.stamen.bkg(smplc, zoom = 12)
+
+nb.plc.divsf <- nb.plc.div %>% geox::attach.geos(query.fcn = tigris::block_groups)
+
+ggmap(sttm) +
+  geom_sf(
+    data = nb.plc.divsf
+    ,aes(fill = poly.id)
+    ,color = 'white'
+    ,alpha = .6
+    ,inherit.aes = F
+  ) +
+  geom_sf(data = hwys
+          ,aes(color = factor(signt1))
+          ,size =  1.3
+          ,inherit.aes = F
+  ) +
+  scale_fill_discrete(guide = 'none') +
+  visaux::bbox2ggcrop(nb.plc.divsf) +
+  theme_void() +
+  theme(legend.position = 'bottom')
+
+
+```
+
+See the R script "sample polydiv gen.R" to see a longer walkthrough of the workflow that generates this.
