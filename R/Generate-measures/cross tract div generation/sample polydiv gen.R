@@ -343,3 +343,95 @@ fhwys <- divM::Fix.all.hwys(hwys)
 # peak at inputs; signt1 is highway type column (see NHPN metadata)
 ggplot() + geom_sf(data = st_boundary(czsf)) + geom_sf(data = hwys, aes(color = signt1))
 
+
+
+
+
+# addl sample ------------------------------------------------------------------
+
+.countyfps <- geox::x2cos(cz='03101', cbsa = NULL)
+rsf <- geox::build.CZs('03101'
+                       #, crs = 4326
+                       ) %>%
+  mutate(rid = cz, rt = 'cz')
+rsf
+
+rds <- map_dfr(.countyfps
+               ,~ tigris::roads(state = substr(.x,1,2)
+                                ,county = substr(.x,3,5)
+                                ,year = 2019)
+               ) %>%
+  rename_with(tolower) %>%
+  st_transform(st_crs(rsf)) %>%
+  st_crop(rsf)
+
+interstates <- rds %>%
+  filter(rttyp %in% 'I')
+
+arterials <- rds %>%
+  filter(mtfcc %in%
+           Hmisc::Cs(S1100, S1200, S1630))
+
+
+nbrsf <- rsf %>% st_buffer(-100)
+polys <-
+  st_split(nbrsf
+            , interstates)
+
+polys
+
+# explode from GEOCOLLECTION/MULTIPOLYGON
+polys <- polys$geometry %>% st_collection_extract("POLYGON") %>% st_cast("POLYGON")
+polys <- st_make_valid(polys) %>% st_sf()
+polys <- handle.overlaps(polys)
+
+
+
+polygonal.div( rsf
+               ,interstates
+               ,return.sf = T)
+
+#tigris.call <- tigris::tracts
+tigris.call <- tigris::block_groups
+
+devtools::document()
+devtools::load_all()
+?divM::gen.cross.tract.dividedness
+
+
+
+
+int.div <-
+  divM::gen.cross.tract.dividedness(
+    region = rsf
+    ,divs = interstates
+    ,nbd.query.fcn = tigris.call
+    ,year = 2019
+    ,region.id.colm = 'rid'
+    ,erase.water = F
+    ,negative.buffer = 200
+  ) %>%
+  select(geoid, int.poly = poly.id)
+
+ar.div <-
+  divM::gen.cross.tract.dividedness(
+    region = rsf
+    ,divs = arterials
+    ,nbd.query.fcn = tigris.call
+    ,year = 2019
+    ,region.id.colm = 'rid'
+    ,erase.water = F
+  ) %>%
+  select(geoid, arterial.poly = poly.id)
+
+
+## hard scratch
+polys <-
+  st_split(st_buffer(region
+                     , -100)
+           , divs)$geometry
+
+# explode from GEOCOLLECTION/MULTIPOLYGON
+polys <- polys %>% st_collection_extract("POLYGON") %>% st_cast("POLYGON")
+polys <- st_make_valid(polys) %>% st_sf()
+polys <- handle.overlaps(polys)

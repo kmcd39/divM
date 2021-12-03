@@ -14,7 +14,7 @@
 #' @param region.id.colm identifer column for supplied region
 #' @param cutout.water wheter or not to cut out water areas before getting
 #'   dividedness.
-#' @param ... passed onto `polygonal.div`
+#' @inheritDotParams polygonal.div
 #'
 #' @return a data.frame with one row per census tract in the supplied region, with a
 #'   geoid column and a poly.id column indicating which "polygon division" each tract
@@ -53,7 +53,7 @@ gen.cross.tract.dividedness <- function(region
     divs <- Fix.all.hwys(divs)
 
   # query nbhds; use bbox and then trim based on spatial overlap below
-  nbhds <- geox::tracts.from.sf(
+  nbhds <- geox::nbhds.from.sf(
     x = st_bbox(region)
     ,query.fcn = nbd.query.fcn
     ,year = year

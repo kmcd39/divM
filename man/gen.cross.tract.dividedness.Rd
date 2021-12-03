@@ -21,7 +21,20 @@ gen.cross.tract.dividedness(
 
 \item{region.id.colm}{identifer column for supplied region}
 
-\item{...}{passed onto \code{polygonal.div}}
+\item{...}{
+  Arguments passed on to \code{\link[=polygonal.div]{polygonal.div}}
+  \describe{
+    \item{\code{region}}{\code{sf} object representing neighborhoods to allocate to subdivision}
+    \item{\code{divs}}{linear \code{sf} representing divisions.}
+    \item{\code{negative.buffer}}{Shrink region by this amount only for calculating polygons.
+Useful for handling shpfiles w/ different resolutions, especially for regions
+along an international border. Defaults to 100m.}
+    \item{\code{min.size}}{Minimum (area) size for population, in meters. Defaults to 5e5, or
+1/2 a km^2. Set to NULL to not filter by size.}
+    \item{\code{return.sf}}{If true, returns an sf object, w/ one row per polygon
+subdivision, that can easily be mapped or allocated to neighborhoods. If false
+(default), returns number of polygons.}
+  }}
 
 \item{cutout.water}{wheter or not to cut out water areas before getting
 dividedness.}

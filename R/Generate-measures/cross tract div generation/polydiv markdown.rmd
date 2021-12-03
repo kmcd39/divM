@@ -153,3 +153,65 @@ ggmap(sttm) +
 ```
 
 See the R script "sample polydiv gen.R" to see a longer walkthrough of the workflow that generates this.
+
+### Using Census Roads
+
+I switched from using NHPN data to census roads for polygons. The data's neater and more complete, and the measures it generates will be a little more accurate. Here's a sample call, loading and ascribing dividedness based on census urban arterials.
+
+```{r plc.census}
+
+smplc
+cosf <- geox::county.subset(st_bbox(smplc))
+
+rds <- tigris::roads( state = cosf$statefp
+                     ,county = cosf$countyfp
+                     ,year = 2019) %>% 
+  rename_with(tolower) %>% 
+  st_transform(4326)
+
+# just interstates
+ints <- rds %>% filter(rttyp == 'I') 
+
+# arterials
+arts <- rds %>% filter(mtfcc %in%
+           Hmisc::Cs(S1100, S1200, S1630))
+# -> Census codes for road features are referenced here:
+# https://www2.census.gov/geo/pdfs/reference/mtfccs2019.pdf
+
+# allocate block groups to sub-area divisions, using arterials
+nb.plc.div <- divM::gen.cross.tract.dividedness(
+  region = smplc
+  ,divs = arts
+  ,nbd.query.fcn = tigris::block_groups
+  ,region.id.colm = 'placefp'
+  ,erase.water = F
+  ,year = 2019
+  )
+
+nb.plc.div
+
+# get background tiles for vis this time
+sttm <- visaux::get.stamen.bkg(smplc, zoom = 12)
+
+nb.plc.divsf <- nb.plc.div %>% geox::attach.geos(query.fcn = tigris::block_groups)
+
+ggmap(sttm) +
+  geom_sf(
+    data = nb.plc.divsf
+    ,aes(fill = poly.id)
+    ,color = 'white'
+    ,alpha = .6
+    ,inherit.aes = F
+  ) +
+  geom_sf(data = arts
+          ,aes(color = factor(rttyp))
+          ,size =  1.3
+          ,inherit.aes = F
+  ) +
+  scale_fill_discrete(guide = 'none') +
+  visaux::bbox2ggcrop(nb.plc.divsf) +
+  theme_void() +
+  theme(legend.position = 'bottom')
+
+
+```
