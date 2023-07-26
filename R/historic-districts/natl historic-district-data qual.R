@@ -117,6 +117,7 @@ attrs <-
     ,layer = lyrs$name[11])
 
 attrs <- attrs %>% tibble() %>% rename_with(tolower)
+attrs
 #(these are not the same as the NARA file, but have potentially useful info on #
 #of bldgs affected by historic designation, for example.) )
 
@@ -204,7 +205,7 @@ mergd %>%
            tolower(city.x) != tolower(city.y) |
            tolower(status.x) != tolower(status.y)
          )
-# also note (_ is from attrs)
+# (note: property_name below is from attrs; property.name is from nara.)
 mergd %>%
   filter(property.name != property_name) %>%
   select(property.name, property_name)
@@ -305,8 +306,6 @@ dists %>% st_sf() %>% mapview()
 # merge to NARA records
 
 
-
-ncr <-
 
 
 
