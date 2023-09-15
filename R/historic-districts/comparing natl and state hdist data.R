@@ -129,6 +129,7 @@ ncr <- ncrs %>%
 ncrpy <- ncr %>%
   filter(grepl('py$', lyr))
 
+ncrpy <- ncrpy %>% st_sf() %>% st_make_valid()
 
 # natl attributes data ----------------------------------------------------
 
@@ -169,7 +170,6 @@ tmp %>%
   taux::sum.NAs(T)
 
 
-
 # Jersey-specific analysis / map comparison  ---------------------------------
 
 #' reminder: metadata is useful.
@@ -198,6 +198,13 @@ tmp %>%
 #' NOT_ELIGIBLE -  Formally determined not-elibile for listing in the New Jersey
 #' and/or Natonal Registers of Historic Places --- ONLY FOR RESOURCES FORMERLY
 #' OPINIONED AS ELIGIBLE NOW FORMALLY DE-OPINIONED
+#'
+#' Major flag in the datasource
+#' (https://njogis-newjersey.opendata.arcgis.com/datasets/njdep::historic-districts-of-new-jersey/about):
+#'
+#' "HPO is still in the process of comprehensive digitizing for categories 4 and
+#' 5. Inclusion in this dataset does not preclude the existence of other
+#' historic districts as yet unidentified, unrecorded, or undocumented."
 
 njdsts <- sldsts$nj
 njdsts <- njdsts %>% select( where( ~length(unique(.x)) > 1 ))
@@ -238,9 +245,11 @@ njcrspy <- njcrspy %>%
                       'property_id' ))
 
 # create map that does Jersey along with national
+library(mapview)
+
 njdsts %>%
   select( -matches('note')) %>%
-  filter( !grepl('DELISTED|NOT_ELIGIBLE', status)) %>%
+  #filter( !grepl('DELISTED|NOT_ELIGIBLE', status)) %>%
   mapview( .
            ,zcol = 'status'
            ,layer.name = 'Jersey state-level data') +
@@ -257,9 +266,93 @@ njdsts %>%
 
 
 
-tmp %>%
-  head(300) %>%
-  mapview(zcol ='status')
+# tmp %>%
+#   head(300) %>%
+#   mapview(zcol ='status')
+
+
+
+## only nat'l register data over NJ ----------------------------------------
+
+ncrs$crdist_py %>% glimpse()
+attrs %>% filter(property_id %in% ncrs$crdist_py$nr_propertyid) %>% glimpse()
+attrs %>% count(status)
+
+njcrspy %>%
+  tibble() %>%
+  select(matches('^number')) %>%
+  map( summary )
+
+njcrspy %>%
+  mapview(zcol = 'number_of_contributing_buildings')
+
+
+## data questions ----------------------------------------------------------
+
+#' When a district is both national -and- local, how does it show up in the
+#' data? If `Status` column is "LISTED," could it be local as well as State or
+#' National?
+#'
+#' Note the content form the state DEP
+#' (https://www.mounttabornj.org/wp-content/uploads/2015/04/State_National_Register_facts.pdf):
+#'
+#' "Local landmarks and historic district regulations that may affect private
+#' property owner actions are completely separate from New Jersey and National
+#' Register regulations. The New Jersey and National Registers provide a degree
+#' of review and protection from public actions only."
+#'
+#' -> state listing is pretty similar to nat'l in that it has lower restrictiveness.
+#'
+#' Metadata says: "LISTED" means "Listed in the New Jersey and/or National
+#' Registers of Historic Places"
+#'
+#' while "LOCALLY_DESIGNATED" means "Designated as an historic district by
+#' municipal ordinance."
+#'
+#' Comparing the NR and NJ data, shows that sometimes local distrcts can also be
+#' national, hopefully it's not also vice-versa..
+
+njdsts %>% class()
+njdsts <- njdsts %>% tibble()
+
+njdsts %>% glimpse()
+
+
+njdsts %>%
+  count( in.nr = !is.na(nris_id)
+        ,status)
+
+# LISTED or NHL districts have non-NA designation dates for State/Local
+# designations (with a few exceptions); local ones have NAs for those. That seems to imply
+njdsts %>%
+  count( natl.or.state =
+           !is.na(nrdate) |
+           !is.na(srdate)
+         ,status)
+# altho 1 exception: a LISTED district that doesn't have the s/r designation
+# dates:
+njdsts %>%
+  filter(status == 'LISTED') %>%
+  filter( is.na(nrdate) &
+           is.na(srdate)
+         ) #%>% st_sf() %>% mapview()
+
+# checking locally designated ones..
+
+# njdsts %>%
+#   filter(grepl('LOCALLY_', status) ) %>%
+#   select(matches('^nr|^local|^sr')) %>% View()
+
+# some that are not locally designated but have a local designation date..?
+njdsts %>%
+  filter( !grepl('LOCALLY_', status) ) %>%
+  filter( !is.na(localdate) ) %>% View()
+  count( is.na(localdate))
+
+
+
+njdsts %>% count(status)
+njdsts %>% taux::sum.NAs(T)
 
 
 # Vermont-specific analysis  -----------------------------------------------
@@ -269,6 +362,14 @@ tmp %>%
 #'
 #' metadata:
 #' https://www.arcgis.com/sharing/rest/content/items/ee5cdb1b9c094139ad00f7f02785d2b2/info/metadata/metadata.xml?format=default&output=html
+#'
+#' Details on historic preservation in VT:
+#' http://vpic.info/Publications/Reports/Implementation/Historic.pdf
+#'
+#' From above: section on Historic Districts and Design Control Districts -- the
+#' zoning overlays that mandate design decisions are "local regulations" --
+#' "Local regulations of this kind are by far the best way to ensure protection
+#' of historic resources in a community"
 
 
 # state-level historical districts, sldsts
@@ -279,15 +380,13 @@ vtdsts <- sldsts$vt %>% rename_with(tolower)
 vtdsts %>% glimpse()
 # rpc is which "regional planning commission"
 vtdsts %>% tibble() %>% count(rpc)
-njdsts %>% glimpse()
+vtdsts %>% glimpse()
 
 
 ## load natl register for VT -----------------------------------------------
 
 vtstate <- statesf %>%
   filter(grepl('VT$', stusps))
-
-
 
 # filter NatReg data to jersye better
 vtcrspy <- ncrpy %>%
@@ -317,7 +416,7 @@ mapview( vtdsts
   ( mapview( #njcrspy
     st_boundary(vtcrspy)
     #,zcol = 'lyr'
-    ,lwd = 4
+    ,lwd = 6
     #,col.regions = 'grey90'
     ,color = '#FF7F50'
     ,layer.name = 'National Register data')) +
