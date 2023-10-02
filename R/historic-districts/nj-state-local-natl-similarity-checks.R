@@ -279,7 +279,7 @@ seldsts2 <- njdsts %>%
 
 # based on this, it seems like LISTED also counts as local district, even when
 # there's no local desgination date:
-mapview(localdist
+mapview(localdists
         ,col.regions = visaux::jewel.pal()[4]
         ,layer.name = 'local data'
 ) +
@@ -291,6 +291,28 @@ mapview(localdist
   mapview(  st_boundary(plcdata)
             ,layer.name = 'city boundaries'
   )
+
+seldsts2 <- seldsts2 %>%
+  filter(grepl('LISTED|LOCAL', status)) %>%
+  filter(grepl('district', name
+               ,ignore.case = T))
+
+seldsts2 %>% tibble() %>% count(status)
+
+# just LOCALLY designated or "LISTED" :
+mapview(localdists
+        ,col.regions = visaux::jewel.pal()[4]
+        ,layer.name = 'local data'
+) +
+  mapview(st_boundary(seldsts2)
+          #,zcol = 'status'
+          ,color = visaux::jewel.pal()[5]
+          ,layer.name = 'state data'
+          ,lwd = 4) +
+  mapview(  st_boundary(plcdata)
+            ,layer.name = 'city boundaries'
+  )
+
 
 
 # map of local dists and natl --------------------------------------------
@@ -332,7 +354,66 @@ mapview(localdists
            )
 
 
-# gosh lol. It seems there is a BETTER DIFFERENT source for NJ state level data
+# comparing State to Natl districts...? -----------------------------------
 
-# https://njdep.maps.arcgis.com/apps/webappviewer/
+#' using the filters I determined above as appropriate for each..
+
+
+# using same filter criteria as for seldsts2, above -- but not trimming to the
+# fewer areas.
+stdsts <- njdsts %>%
+  filter(grepl('^LISTED|LOCAL', status)) %>%
+  filter(grepl('district', name
+               ,ignore.case = T)) %>%
+  select(objectid, nris_id,
+         name, status, demolished,
+         nhl, 'bound_qual',
+         matches('date'), geometry) %>%
+  st_sf() %>%
+  st_make_valid()
+
+# where there are possible parks? or Historic District is in brackets.
+
+# "Park" is not a good filter
+stdsts %>%
+  tibble() %>%
+  filter(grepl(' Park ', name)) %>%
+  select(name, status)
+
+# this works:
+# stdsts %>%
+#   filter(grepl('\\[Historic District\\]', name)) %>%
+#   mapview()
+
+stdsts <- stdsts %>%
+   filter( !grepl('\\[Historic District\\]', name) )
+
+# stdsts %>% mapview(zcol = 'status')
+
+## trim NR data further
+njstate <- tigris::states(year =2021) %>%
+  rename_with(tolower) %>%
+  filter(stusps == 'NJ') %>%
+  st_transform(4326)
+
+selnatlf <- selnatlf %>%
+  st_filter(njstate)
+
+# map
+scales::show_col(visaux::jewel.pal())
+
+mapview(
+  stdsts
+  #,zcol = 'status'
+  ,col.region = visaux::jewel.pal()[4]
+  ,layer.name = 'state data'
+  ) +
+  mapview(
+    st_boundary(selnatlf)
+    #,zcol = 'status'
+    ,layer.name = 'national register data'
+    ,color = visaux::jewel.pal()[5]
+    ,lwd = 4)
+
+
 

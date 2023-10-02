@@ -1,0 +1,38 @@
+---
+title: "markdown"
+author: "kira"
+output:  
+  html_document:s
+     toc: true
+     toc_float: true
+     theme: cerulean
+     highlight: tango
+---
+
+<style type="text/css">
+  body{
+  font-size: 14pt;
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F
+                      ,message = F
+                      ,warning = F
+                      ,dpi=300
+                      ,fig.width=5.5
+                      ,fig.height=4.8)
+library(tidyverse)
+options(tigris_use_cache = TRUE)
+
+```
+
+<hr>
+
+
+# Data loads
+
+Code is hidden, but:
+
+* National Register Info is from
