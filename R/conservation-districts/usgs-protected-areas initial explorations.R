@@ -5,6 +5,7 @@ options(tigris_use_cache = TRUE)
 
 rm(list = ls())
 
+
 #' notes from patrick:
 #'
 #' If you're able: here is the site where data on "protected areas" for the
@@ -22,7 +23,12 @@ rm(list = ls())
 
 # load data ----------------------------------------------------------------
 
-# downloaded from https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-download
+#' downloaded from
+#' https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-download
+#'
+#' Additional data information at
+#' https://protectedlands.net/help/
+
 
 ddir <- '~/R/local-data/usgs/PADUS3_0Geodatabase/'
 gdb <- ddir %>% list.files(pattern = 'gdb$', full.names = T)
