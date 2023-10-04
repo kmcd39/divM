@@ -84,8 +84,10 @@ Wrapper_pad.area.by.nbhd <- function(
 
   require(tidyverse)
   require(sf)
+  cat(paste0('generating for state ', statefp, '\n'))
 
   # get tracts for given state
+  cat('querying for tracts or block groups \n')
   fcts <- geo.query(year = geo.yr
                     ,state = statefp) %>%
     rename_with(tolower) %>%
@@ -96,11 +98,10 @@ Wrapper_pad.area.by.nbhd <- function(
   wktf <- fcts %>% st_bbox() %>% st_as_sfc() %>% st_as_text()
 
   # load raw USGS PAD data.
+  cat('loading USGS PAD data \n')
   gdb <- pad.dir %>% list.files(pattern = 'gdb$', full.names = T)
-
   lyrs <- gdb %>% st_layers()
 
-  # load spatial data
   pad <- st_read(
     gdb
     , layer = lyrs$name[9]
@@ -121,6 +122,7 @@ Wrapper_pad.area.by.nbhd <- function(
     pad <- pad %>% st_simplify()
 
   # run measure generation function over each category
+  cat('generating measures \n')
   combined <- category.colms %>%
     map(
       ~protected.area.by.type.by.tract(
