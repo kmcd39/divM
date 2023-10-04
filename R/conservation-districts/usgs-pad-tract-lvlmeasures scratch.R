@@ -426,7 +426,7 @@ Wrapper_pad.area.by.nbhd <- function(
   )
   # may be a warning/GDAL error reading..
 
-  browser()
+  #browser()
 
   # cast to polygons (get rid of multisurface), then turn to tibble for
   # non-spatial processing
@@ -473,13 +473,13 @@ Wrapper_pad.area.by.nbhd <- function(
 
 
 # testing..
-#devtools::load_all()
-fcn.combined <- Wrapper_pad.area.by.nbhd(34
-                         ,'~/R/local-data/usgs/PADUS3_0Geodatabase/'
-                         ,category.colms = 'des_tp')
-
-combined
-fcn.combined
+# #devtools::load_all()
+# fcn.combined <- Wrapper_pad.area.by.nbhd(34
+#                          ,'~/R/local-data/usgs/PADUS3_0Geodatabase/'
+#                          ,category.colms = 'des_tp')
+#
+# combined
+# fcn.combined
 
 # great! just gotta set this up as a Della script.
 

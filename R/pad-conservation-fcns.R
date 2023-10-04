@@ -10,6 +10,8 @@ protected.area.by.type.by.tract <-
            cts,
            category.colm = NULL) {
 
+    require(tidyverse)
+    require(sf)
     #browser()
 
     pad <- pad %>% st_sf() %>% st_transform(5070)
@@ -66,6 +68,7 @@ protected.area.by.type.by.tract <-
 #' @param simplify.geos T/F whether to run st_simplify on PAD data before
 #'   measure generation.
 #'
+#' @export Wrapper_pad.area.by.nbhd
 Wrapper_pad.area.by.nbhd <- function(
     statefp,
     pad.dir,
