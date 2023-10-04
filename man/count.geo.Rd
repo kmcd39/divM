@@ -4,7 +4,7 @@
 \alias{count.geo}
 \title{count.geo}
 \usage{
-\method{count}{geo}(x)
+count.geo(x)
 }
 \description{
 Counts geometry types of sf object.

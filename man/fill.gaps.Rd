@@ -4,7 +4,7 @@
 \alias{fill.gaps}
 \title{fill.gaps}
 \usage{
-\method{fill}{gaps}(hwy, return.gap.map = F, threshold = 200, ...)
+fill.gaps(hwy, return.gap.map = F, threshold = 200, ...)
 }
 \arguments{
 \item{hwy}{a single hwy, i.e., with single unique sign1, after divM::denode.lines
