@@ -369,7 +369,6 @@ combined
 combined %>% count(protected.area.descriptor)
 combined %>% count(protected.area.descriptor, protected.area.value)
 
-# great! just gotta set this up as a Della script.
 
 
 # wrapper fcn to generate measures over whole state -----------------------
@@ -404,6 +403,8 @@ Wrapper_pad.area.by.nbhd <- function(
   require(tidyverse)
   require(sf)
 
+
+
   # get tracts for given state
   fcts <- geo.query(year = geo.yr
                     ,state = statefp) %>%
@@ -414,18 +415,18 @@ Wrapper_pad.area.by.nbhd <- function(
   # get bbox and wkt filter for that area
   wktf <- fcts %>% st_bbox() %>% st_as_sfc() %>% st_as_text()
 
-  # load raw USGS PAD data.
+  # load PAD spatial data
   gdb <- pad.dir %>% list.files(pattern = 'gdb$', full.names = T)
-
   lyrs <- gdb %>% st_layers()
 
-  # load spatial data
   pad <- st_read(
     gdb
     , layer = lyrs$name[9]
     , wkt_filter = wktf # over sample area
   )
   # may be a warning/GDAL error reading..
+
+  browser()
 
   # cast to polygons (get rid of multisurface), then turn to tibble for
   # non-spatial processing
@@ -434,8 +435,7 @@ Wrapper_pad.area.by.nbhd <- function(
     rename_with(tolower) %>%
     st_cast("MULTIPOLYGON") %>%
     st_transform(5070) %>%
-    tibble()
-
+    st_make_valid()
 
   if(simplify.geos)
     pad <- pad %>% st_simplify()
@@ -472,4 +472,17 @@ Wrapper_pad.area.by.nbhd <- function(
 }
 
 
-# going to move the functions to pad-fcns script.
+# testing..
+#devtools::load_all()
+fcn.combined <- Wrapper_pad.area.by.nbhd(34
+                         ,'~/R/local-data/usgs/PADUS3_0Geodatabase/'
+                         ,category.colms = 'des_tp')
+
+combined
+fcn.combined
+
+# great! just gotta set this up as a Della script.
+
+# functions moved to pad-fcns script.
+
+

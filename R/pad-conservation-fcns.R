@@ -112,8 +112,7 @@ Wrapper_pad.area.by.nbhd <- function(
     rename_with(tolower) %>%
     st_cast("MULTIPOLYGON") %>%
     st_transform(5070) %>%
-    tibble()
-
+    st_make_valid()
 
   if(simplify.geos)
     pad <- pad %>% st_simplify()
