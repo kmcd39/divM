@@ -1,3 +1,179 @@
+
+
+#' Wrapper_pad.area.by.nbhd
+#'
+#' Wraps all steps to generate measures for protected areas by type (and
+#' overall) for a given state, by tract or block group.
+#'
+#' @param statefips FIPS code for state to generate
+#' @param pad.dir Directory of USGS PAD geodatabase. Default parameter for KM della
+#' @param tigris.dir Directory with tigris geometries, if on Della w/o internet
+#'   access (so can't just pull directly.) Should have either tracts or
+#'   blockgroups for this function. Default parameter for block groups on KM della
+#' @param remove.water Whether to remove water from tracts
+#' @param water.size.floor Minimum square meters to use as a catch-all filter to
+#'   keep water areas (can be 0)
+#' @param simplify.geos T/F whether to run st_simplify on PAD data before
+#'   measure generation.
+#'
+Wrapper_pad.area.by.nbhd_archived <- function(
+    statefips,
+    pad.dir = '/scratch/gpfs/km31/protected-areas/usgs-data/PADUS3_0Geodatabase/',
+    tigris.dir = '/scratch/gpfs/km31/census-geos/bgs/',
+    remove.water = T,
+    water.size.floor = 1e5,
+    geo.precision = units::set_units(1, 'meters'),
+    simplify.geos = F) {
+
+  require(tidyverse)
+  require(sf)
+  cat(paste0('generating for state ', statefips, '\n'))
+
+  # get nbhds for given state
+  cat('querying for tracts or block groups \n')
+  pth <- list.files(tigris.dir, pattern = 'shp$')
+  cat('using file ', pth)
+
+  nbhds <- st_read( paste0(tigris.dir, pth)) %>%
+    rename_with(tolower) %>%
+    filter(statefp == statefips) %>%
+    st_transform(5070) %>%
+    select(1:4, aland, awater, geometry)
+
+  # remove only-water CTs
+  nbhds <- nbhds %>%
+    filter(aland > 0 )
+
+  # trim water if desired (UGH this won't work on della w/o more setup)
+  if(remove.water) {
+    # retrieve water
+    wtr <-
+      map_dfr(
+        unique(nbhds$countyfp),
+        ~tigris::area_water(state = statefips
+                            ,county = .x
+                            ,year = 2021) %>%
+          rename_with(tolower)
+      )
+    wtr <- wtr %>%
+      geox::trim.tigris.waters(
+        size.floor = water.size.floor
+      )
+    wtr <- wtr %>%
+      st_transform(5070)
+
+    nbhds <- nbhds %>%
+      st_difference( st_union( wtr ) ) %>%
+      st_set_precision(
+        geo.precision) %>%
+      st_make_valid()
+  }
+
+  # get bbox and wkt filter for area
+  wktf <- nbhds %>% st_bbox() %>% st_as_sfc() %>% st_as_text()
+
+  # load raw USGS PAD data.
+  cat('loading USGS PAD data \n')
+  gdb <- pad.dir %>% list.files(pattern = 'gdb$', full.names = T)
+  lyrs <- gdb %>% st_layers()
+
+  # read Pad fees & easements
+  pfe <-
+    map(lyrs$name[c( 11, 13 )]
+        , ~st_read(
+          gdb
+          , layer = .x
+          , wkt_filter = wktf # over sample area
+        )
+    ) %>%
+    set_names( lyrs$name[c( 11, 13 )] )
+  # may be a warning/GDAL error reading..
+
+  pfe <- pfe %>%
+    map( tibble ) %>%
+    map( ~rename_with(., tolower) ) %>%
+    map( ~rename(., geometry = shape) )
+
+
+  ## trim colms and rbind
+  keep.cols <- Hmisc::Cs(featclass, mang_type,
+                         loc_mang, loc_ds,
+                         unit_nm,
+                         src_date, date_est,
+                         gis_acres,
+                         pub_access, gap_sts,
+                         des_tp, geometry )
+
+  pfe <- pfe %>%
+    map_dfr( ~select(  tibble(.x)
+                       , all_of(keep.cols)) )
+
+  ## spatial cleans
+  pfe <- pfe %>%
+    st_sf() %>%
+    st_transform(5070) %>%
+    st_cast('MULTIPOLYGON') %>%
+    st_set_precision(
+      geo.precision ) %>%
+    st_make_valid()
+
+  if(simplify.geos)
+    pfe <- pfe %>% st_simplify()
+
+  ## removing overlaps
+  pfed <- pfe %>%
+    arrange(desc(featclass)) %>%
+    st_difference()
+
+
+  # union by relevant columns
+  pfed <- pfed %>%
+    group_by(mang_type, des_tp) %>%
+    summarise(., do_union = T)
+
+  # add index/id
+  pfed <- pfed %>%
+    ungroup() %>%
+    mutate(id = 1:nrow(.)
+           ,.before = everything())
+
+  # get overlap by nbhd, long by manager and designation type
+  cat('generating measures \n')
+  perc.by.nbhd <-
+    geox::get.spatial.overlap(
+      fcts,
+      pfed,
+      'geoid',
+      'id',
+      filter.threshold = 0.005 # half a percent overlap.
+    )
+
+  # add full list of tracts and make 0s explicit
+  perc.by.tract <- perc.by.tract %>%
+    full_join(tibble(fcts)['geoid']) %>%
+    mutate(perc.area =
+             if_else( is.na(perc.area),
+                      0, perc.area)
+    )
+
+  # add des/mgnr type back
+  perc.by.tract <- perc.by.tract %>%
+    left_join(tibble(pfed)[c('id', 'mang_type', 'des_tp' )]
+              ,by = 'id') %>%
+    select(-id)
+
+
+  # return set of combined measures
+  return(combined)
+}
+
+
+
+# archived ----------------------------------------------------------------
+
+# out of use, for first pass:
+
+
 #' protected.area.by.type.by.tract
 #'
 #' @param pad data for protected areas
@@ -54,7 +230,7 @@ protected.area.by.type.by.tract <-
   }
 
 
-#' Wrapper_pad.area.by.nbhd
+#' Wrapper_pad.area.by.nbhd_archived
 #'
 #' Wraps all steps to generate measures for protected areas by type (and
 #' overall) for a given state, by tract or block group.
@@ -68,8 +244,7 @@ protected.area.by.type.by.tract <-
 #' @param simplify.geos T/F whether to run st_simplify on PAD data before
 #'   measure generation.
 #'
-#' @export Wrapper_pad.area.by.nbhd
-Wrapper_pad.area.by.nbhd <- function(
+Wrapper_pad.area.by.nbhd_archived <- function(
     statefp,
     pad.dir,
     category.colms = c( 'featclass'

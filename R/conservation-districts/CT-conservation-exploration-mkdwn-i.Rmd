@@ -1,3 +1,29 @@
+---
+title: "markdown"
+author: "kira"
+output:  
+  html_document:
+     toc: true
+     toc_float: true
+     theme: cerulean
+     highlight: tango
+     code_folding: hide
+---
+
+<style type="text/css">
+  body{
+  font-size: 14pt;
+}
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T
+                      ,message = F
+                      ,warning = F
+                      ,dpi=300
+                      ,fig.width=6.5
+                      ,fig.height=6)
 library(tidyverse)
 library(sf)
 
@@ -5,10 +31,18 @@ options(tigris_use_cache = TRUE)
 
 rm(list = ls())
 
+library(mapview)
+
+```
+
+<hr>
+
+# Setup
+
+```{r, echo=T}
+
+
 #' notes:
-#'
-#' rename this script, original pad-analysis became measure gen; it's there
-#' becuase i'm just doing it locally...
 #'
 #' Also remember source for additional metadata:
 #' https://www.protectedlands.net/help/
@@ -16,16 +50,6 @@ rm(list = ls())
 #' The "Technical How-Tos" in that site has "Detailed Descriptions of Layer
 #' Files" which is helpful, as well as "Tips for GIS Users"; in particular ---
 #'
-#' "A: Manager-based mapping is highly recommended in PAD-US, as the manager
-#' field (Mang_Name) is more completely filled in than the owner field (work is
-#' underway on the owner field). The best approach here may be to use one of the
-#' pre-made PAD-US layer files: “Mid Agency Level” and “Fine Agency Level” layer
-#' files have individual agency names for Federal managers and generic names for
-#' other managers; “General Agency Level” has generic level names for all
-#' managers (Federal, State, etc.). You can of course choose “Mang_Name” as the
-#' field to categorize in any GIS software and define your own colors."
-#'
-
 
 # CT analysis -------------------------------------------------------------
 
@@ -96,35 +120,6 @@ metadata <- lyrs$name[1:7] %>%
 metadata$Agency_Name
 metadata$Agency_Type
 
-# intial exploration ------------------------------------------------------
-
-padm %>% filter(is.na(protected.area.value))
-
-
-padm %>% count(protected.area.descriptor)
-padm %>% count(protected.area.descriptor, protected.area.value) %>% arrange(desc(n))
-
-padm
-
-pad$own_type
-pad$own_name
-
-# brainstorming -----------------------------------------------------------
-
-#' i can make bivariate chloropleths with SES indicators and protected area by
-#' selected type... and scatterplots of the same
-#'
-#' I think I need to start with some mapping
-#'
-#' I can calculate total acreage of protected area by type for some initial
-#' analysis and see what categories are well represented...
-#'
-#' Remember that the "how-tos" recommends mapping by Manager type rather than
-#' owned field (see
-#' https://www.protectedlands.net/pad-us-technical-how-tos/#tips-for-gis-users-5)
-#'
-
-
 # setup for some visuals --------------------------------------------------
 
 # epsg for good CT projection
@@ -163,36 +158,11 @@ ctsf <- tigris::tracts(state = 'CT'
   st_transform(ctcrs) %>%
   filter(aland > 0)
 
-# med hh inc and pop dens
-# cattrs %>%
-#   left_join(ctsf)%>%
-#   st_sf() %>%
-#   ggplot() +
-#   geom_sf(aes(fill = med.hhinc)
-#           ,color = NA) +
-#   scale_fill_viridis_b()
-
-cattrs$pop_dens %>% head()
-
-cattrs %>%
-  left_join(ctsf)%>%
-  st_sf() %>%
-  mutate(pop_dens.capped =
-           visaux::cap.at.quantile(pop_dens)
-         ) %>%
-  ggplot() +
-  geom_sf(aes(fill = as.numeric(pop_dens.capped))
-          ,color = NA) +
-  scale_fill_viridis_b(
-     name = 'Pop dens (persons/acre)'
-    ,labels = visaux::ggcapped.labels
-  )
-
-
-## create a subset of raw PAD data for a smaller area ----------------------
+## also create a subset of raw PAD data for a smaller area ----------------------
 
 # ctcos %>% mapview(zcol = 'geoid')
 
+# Hartford box
 selcos <- ctcos %>%
   filter(geoid == '09003') %>%
   st_transform(5070)
@@ -203,9 +173,59 @@ cpad <- pad %>%
   st_crop(selcos) %>%
   tibble()
 
-# exploratory visuals of PAD measures & data -----------------------------------------
 
-padm %>% count(protected.area.descriptor)
+```
+
+
+# Initial Demographic Maps
+
+Population density and median household income, for some preliminary context:
+
+
+```{r, echo=T}
+
+# med hh inc and pop dens
+cattrs %>%
+  left_join(ctsf)%>%
+  st_sf() %>%
+  ggplot() +
+  geom_sf(aes(fill = med.hhinc)
+          ,color = NA) +
+  scale_fill_viridis_b(
+    name = 'median household income'
+    ,labels = ~paste0('$',scales::comma(.x) )
+  ) +
+  theme_void()
+
+
+cattrs %>%
+  left_join(ctsf)%>%
+  st_sf() %>%
+  mutate(pop_dens.capped =
+           visaux::cap.at.quantile(pop_dens ,.9)
+         ) %>%
+  ggplot() +
+  geom_sf(aes(fill = as.numeric(pop_dens.capped))
+          ,color = NA) +
+  scale_fill_viridis_b(
+     name = 'Pop density\n(persons/acre)'
+    ,labels = visaux::ggcapped.labels
+  ) +
+   theme_void() +
+  labs(caption = 'scale capped at 90th percential of census tracts in connecticut (CTs in CT...)')
+
+```
+
+# Subseting protected areas data
+
+Features of the Protected Areas Data (PAD) will overlap and intersect. In general, this will happen by "feature class," which describes how the protected areas are defined. The [documentation](https://www.protectedlands.net/pad-us-data-structure-attributes/#geodatabase-structure-1) helps clarify what these are.
+
+Based on looking at the data, it seems a set of filters based on these feature classes are appropriate for trimming the data before any analysis. In particular, we should focus on Fees and Easements, and remove Designations and Proclamations. The latter two classes will frequently overlap with the former two. Fees and easements seem to correspond very well with legal or ownership boundaries, while Designations and Proclamations are more "contextual" or illustrative. Marine features are mostly water, but also comprise protected wetlands and similar, so I think we should include those.
+
+
+```{r}
+
+# exploratory visuals of PAD measures & data -----------------------------------------
 
 #' join to aland to calculate n protected acres. remember units of ALAND are sq
 #' meters
@@ -223,24 +243,18 @@ padm <- padm %>%
   )
 
 padm$acres <- as.numeric(padm$acres)
-padm
-
 
 ## analysis by land managers -----------------------------------------------
-
-padm
 
 mgmt <- padm %>%
   filter(grepl('^mang',
                protected.area.descriptor)) %>%
   group_by(protected.area.descriptor,
            protected.area.value) %>%
-  summarise( count = n()
+  summarise(count = n()
             ,acres = sum(acres)) %>%
   arrange(protected.area.descriptor, desc(acres)) %>%
   ungroup()
-
-mgmt
 
 # add long name
 metamanagers <-
@@ -256,6 +270,16 @@ metamanagers <-
                     ,.before = everything()
                     )
             )
+# mgmt %>%
+#   left_join(metamanagers) %>%
+#   # filter( protected.area.descriptor ==
+#   #           'mang_type') %>%
+#   mutate( label =
+#             if_else( row_number() >= 7
+#                      ,'Unknown or other'
+#                      ,label
+#             ))  %>% View()
+
 
 mgmt <- mgmt %>%
   left_join(metamanagers) %>%
@@ -266,11 +290,7 @@ mgmt <- mgmt %>%
             if_else( row_number() >= 7
                               ,'Unknown or other (recode)'
                               ,label
-                     ))
-
-mgmt
-# aggregate up to recode
-mgmt <- mgmt %>%
+                     )) %>%
   group_by(label) %>%
   summarise(across(c(count, acres)
                    ,~sum(.x, na.rm = T) # NAs are 0s there
@@ -280,30 +300,8 @@ mgmt <- mgmt %>%
                         ,levels = .$label))
 
 
-mgmt
-padm
-metamanagers
-
-# look at all managers by type and name
-all.mgmt <- padm %>%
-  filter( grepl('^mang',
-                protected.area.descriptor
-                ) ) %>%
-  group_by(protected.area.descriptor,
-           protected.area.value) %>%
-  summarise( count = n()
-             ,acres = sum(acres)) %>%
-  arrange(protected.area.descriptor, desc(acres)) %>%
-  ungroup() %>%
-  left_join(metamanagers)
-
-# all.mgmt %>% View()
-
-# ---> confirms mgnr TYPE, note NAME is appropriate for our analysis.
-
 ### map by those categories -------------------------------------------------
 
-library(mapview)
 
 # tract-level by mgmt type
 ct.mgmt <- padm %>%
@@ -315,14 +313,9 @@ ct.mgmt <- padm %>%
 #            if_else(label %in% mgmt$label
 #                    , label
 #                    , 'Unknown or other (recode)'))
-ct.mgmt
 
-# (i haven't re-aggregated to recode yet.. because there are likely overlaps? let's
-# do some exploratory mapping first.)
+# (i haven't re-aggregated to recode yet.. because there are overlaps.)
 
-ct.mgmt %>% count(protected.area.value)
-
-scales::show_col(  visaux::jewel.pal() )
 
 # facet plot by mgmr type
 ct.mgmt %>%
@@ -342,7 +335,11 @@ ct.mgmt %>%
           element_rect(fill = visaux::jewel.pal()[4] )
         ,strip.text = element_text(
           color = 'white', face = 'bold'
-        ))
+        )) +
+  labs(
+    subtitle = 
+      str_wrap('We can see how the Federal protected areas covers so much. This is due to a Proclamation, one of the feature classes by which we should filter.'
+  )) 
 
 # pad %>%
 #   filter(mang_type == 'FED') %>%
@@ -369,7 +366,7 @@ ct.mgmt %>%
 #' areas of private land, while others are close to ownership boundaries. In any
 #' case, it’s important not to consider proclamation boundaries as reflecting
 #' actual land ownership – they’re just for agency administration purposes
-mgmt$label[2:6]
+
 
 tmp <-
   pad %>%
@@ -421,8 +418,7 @@ tmp %>%
   visaux::upper.legend.box() +
   labs(
     title = 'Acreage of Protected Lands by Purpose and Managing Entity in CT'
-    ,subtitle = str_wrap(' ')
-
+    ,subtitle = str_wrap('With Federal mgmt removed')
   )
 
 #' "Proclamations" with federal managers dwarf all other types of protected
@@ -430,51 +426,7 @@ tmp %>%
 #' different interpretaions.
 
 
-
-# a plurality map
-#devtools::install_github('spatial-ineq/divseg')
-
-
 # analysis by designation ------------------------------------------------
-
-# total acreage by designation type. ctdes for designation type in CT
-ctdes <- padm %>%
-  filter(protected.area.descriptor ==
-           'des_tp') %>%
-  group_by(protected.area.value) %>%
-  summarise( count = n()
-            ,acres = sum(acres)) %>%
-  arrange(desc(acres)) %>%
-  left_join(
-    rename(metadata$Designation_Type,
-           protected.area.value = 1, label = 2)
-  )
-
-ctdes
-
-#'  i think a relevant set of filters will be:
-#'
-#'  all conservation easements, and all NGO/PVT/LOCAL gov't-managed.
-#'
-#'  Can recode to "parks", "conservation", and "other," with things like state
-#'  resource mgmt, watershed protection areas omitted?
-#'
-#'  I think that kind of filter -- with Proclamations and outer continental
-#'  shelf areas similarly removed -- would be good ...
-
-#devtools::load_all()
-
-pad %>% count(featclass)
-#
-# # i could regenerate for just designation type for a smarter subset..?
-# dpad <- pad %>%
-#   filter(! featclass %in% c( 'Proclamation'
-#                             ,'Marine')) %>%
-#   protected.area.by.type.by.tract(
-#     cts = ctsf
-#     ,category.colm = 'des_tp'
-#   )
-
 
 #' recode.designations
 #'
@@ -530,30 +482,12 @@ pad %>%
   summarise(count = n(),
             acres = sum(gis_acres)) %>%
   arrange(desc(acres))
+
 pad %>%
   group_by(featclass) %>%
   taux::quantiles.across.groups('gis_acres')
 
 pad$gis_acres %>% quantile(seq(0,1,.1))
-
-tmp <- tmp %>%
-  st_sf() %>%
-  st_simplify()
-
-tmp %>%
-  filter(gis_acres <= 12) %>%
-  head(100) %>%
-  mapview(zcol = 'featclass')
-
-# tmp %>% mapview(zcol = 'recode')  # these take so long to render...
-tmp %>%
-  select(des_tp, label, des_recode) %>% distinct() %>% arrange(des_recode)#  %>% View
-
-tmp %>%
-
-group_by(recode) %>%
-  summarise(aland = sum(aland, na.rm = T)) %>%
-  arrange(desc(aland))
 
 
 
@@ -593,33 +527,7 @@ pad %>%
 
 
 
-# coverage by feature class -----------------------------------------------
-
-
-padm %>%
-  filter(protected.area.descriptor == 'featclass') %>%
-  left_join(ctsf[c('geoid', 'geometry')]) %>%
-  st_sf() %>%
-  filter(!is.na(protected.area.value)) %>%
-  ggplot() +
-  geom_sf(data = ctstate
-          ,fill = 'grey90') +
-  geom_sf( aes(fill = tract.perc.area)
-           ,color = NA
-           ,linewidth = 0
-  ) +
-  scale_fill_viridis_c() +
-  facet_wrap(vars(protected.area.value)) +
-  theme_void() +
-  theme(strip.background =
-          element_rect(fill = visaux::jewel.pal()[4] )
-        ,strip.text = element_text(
-          color = 'white', face = 'bold'
-        ))
-
-
-
-# ct analysis with revised filters ------------------------------------------
+# ct analysis with revised types ------------------------------------------
 
 trimmed.pad <- pad %>%
   filter(! featclass %in% c( 'Proclamation'
@@ -649,8 +557,10 @@ padmr <- padm %>%
 
 padmr %>% select(des_tp, label, recode) %>% distinct() %>% arrange(recode)
 
+
+
 # add acres
-padmr <- padmr %>%
+padmra <- padmr %>%
   left_join(
     tibble(ctsf)[,c('geoid', 'aland')]
   ) %>%
@@ -659,104 +569,16 @@ padmr <- padmr %>%
            units::set_units(
              units::set_units(aland, 'meters^2')
              ,'acres'           )
-  )
-
-# colum plot by label (not recode)
-padmr %>%
-  mutate(acres = as.numeric(acres)
   ) %>%
-  group_by(label,recode) %>%
+  group_by(geoid, recode) %>%
   summarise(across(c(perc.area, acres)
                    ,sum
-  )) %>%
-  ungroup() %>%
-  arrange(desc(acres)) %>%
-  mutate(label = factor(label,
-                         levels = unique(.$label))
-  ) %>%
-  ggplot(
-    aes(y = label
-        ,x = acres
-        ,fill = recode
-    )
-  ) +
-  geom_col(
-    #fill = visaux::jewel.pal()[4]
-  ) +
-  scale_y_discrete(
-    name = NULL
-    ,limits = rev
-  ) +
-  scale_x_continuous(
-    labels = scales::comma
-  ) +
-  scale_fill_manual(
-    values = c(visaux::jewel.pal(), 'black', 'grey70', 'blue')
-  ) +
-theme_minimal() +
-  visaux::upper.legend.box() +
-  labs(
-    #title = ''
-    subtitle = str_wrap('Acreage of Protected Lands after suggested filters applied, all of CT')
+                   ))
 
-  )
+padmra$perc.area %>% quantile(seq(0,1,.05))
 
-# to look at State Rsrc Mgmt Areas
-#pad %>% filter(des_tp == 'SRMA') %>% View()
-
-
-
-## column plot by designation ----------------------------------------------
-
-
-# # aggregate to recode
-# padmra <- padmr %>%
-#   group_by(geoid, recode) %>%
-#   summarise(across(c(perc.area, acres)
-#                    ,sum
-#   ))
-
-padmr$perc.area %>% quantile(seq(0,1,.05))
-
-
+# plurality map of designation.
 padmra %>%
-  mutate(acres = as.numeric(acres)
-         ) %>%
-  group_by(recode) %>%
-  summarise(across(c(perc.area, acres)
-                   ,sum
-  )) %>%
-  arrange(desc(acres)) %>%
-  mutate(recode = factor(recode,
-                         levels = .$recode)
-         ) %>%
-  ggplot(
-    aes(y = recode
-        ,x = acres
-        #,fill = Agency_Type
-        )
-  ) +
-  geom_col(
-    fill = visaux::jewel.pal()[4]
-  ) +
-  scale_y_discrete(
-    name = NULL
-    ,limits = rev
-  ) +
-  scale_x_continuous(
-    labels = scales::comma
-  )
-  theme_minimal() +
-  visaux::upper.legend.box() +
-  labs(
-    title = 'Acreage of Protected Lands after suggested filters applied'
-    ,subtitle = str_wrap(' ')
-
-  )
-
-# facet map of designation  ----------------------------------------------
-
-  padmra %>%
   full_join(ctsf[c('geoid', 'geometry')]) %>%
   st_sf() %>%
   mutate(capped_perc.area =
@@ -785,10 +607,7 @@ padmra %>%
 
 # selected designations within that filters.. just drop agriculatural/ranch,
 # native american lands, and military/research lands
-#padmr %>% select(des_tp, label, recode) %>% distinct() %>% arrange(recode) %>% View()
-
-
-## map of protected areas w suggested filters  --------------------------------
+padmr %>% select(des_tp, label, recode) %>% distinct() %>% arrange(recode) %>% View()
 
 padsel <- padmr %>%
   filter( !grepl('Agricultural|Military|Native American Land Area',
@@ -823,7 +642,7 @@ padsel %>%
   ) %>%
   ggplot() +
   geom_sf(data = ctstate
-          ,fill = 'white') +
+          ,fill = 'grey90') +
   geom_sf( aes(fill = capped_perc.area)
            ,color = NA
            ,linewidth = 0
@@ -957,111 +776,4 @@ cowplot::ggdraw() +
   draw_plot(bi.lgnd, .7, .1, 0.25, 0.25)
 #
 
-
-
-# remaining questions -----------------------------------------------------
-
-#' does Marine overlap systematically with Fee or Designation??
-#'
-#' Based on Sofia's analysis it does..
-#'
-#'
-
-
-## looking at Fee/easements overlaps & scratch code ------------------------
-
-ddir <- '~/R/local-data/usgs/PADUS3_0Geodatabase/'
-gdb <- ddir %>% list.files(pattern = 'gdb$', full.names = T)
-
-lyrs <- gdb %>% st_layers()
-lyrs$name
-# Fees are layer 11 and Easements are 13.
-
-fcts <- tigris::tracts( year = 2021
-                        ,state = 'RI' # RI
-) %>%
-  rename_with(tolower) %>%
-  st_transform(5070) %>%
-  filter(aland > 0)
-
-# see https://github.com/pauldzy/USGS_Albers_Equal_Area_Projections for EPSG.
-wktf <- fcts %>% st_bbox() %>% st_as_sfc() %>% st_as_text()
-
-# read Pad fees & easements
-pfe <-
-  map(lyrs$name[c( 11, 13 )]
-          , ~st_read(
-            gdb
-            , layer = .x
-            , wkt_filter = wktf # over sample area
-            )
-          ) %>%
-  set_names( lyrs$name[c( 11, 13 )] )
-
-# pfe %>% map(st_crs)
-# st_crs(5070)
-# CRS is right
-
-
-
-pfe$PADUS3_0Fee %>% glimpse()
-
-ints <-
-  #st_crosses()
-  st_intersects(
-    pfe$PADUS3_0Fee,
-    pfe$PADUS3_0Easement )
-
-library(mapview)
-
-# scales::show_col(visaux::jewel.pal())
-
-#pfe$PADUS3_0Fee %>% colnames()
-pfe <- pfe %>%
-  map( ~select(.x,
-               matches('^Own|Loc_Mang|FeatClass|Nm$|^Mang|^Des|^Unit|GAP|IUCN|Pub_Access')
-               )
-  )
-
-# map of all Easements and Fees that intersect for CT
-easements <- st_boundary(pfe$PADUS3_0Easement)#[1:100,]
-intersecting.fees  <- pfe$PADUS3_0Fee[lengths(ints) > 0, ]
-all.fees <- pfe$PADUS3_0Fee
-
-mapview( all.fees#intersecting.fees
-           ,col.regions = visaux::jewel.pal()[4]
-  ) +
-    mapview( easements
-             ,color = visaux::jewel.pal()[5]
-             ,size = 2)
-
-metadata$Designation_Type %>% View()
-
-# how many Unknowns or similar for the intersecting fees vs the easements?
-ints[lengths(ints) > 0]
-ints
-
-# can i just union away overlaps from within fees?
-unioned.fees <- all.fees %>%
-  group_by(Mang_Type, Des_Tp) %>%
-  summarise(., do_union = T)
-
-unioned.fees %>%
-  ungroup() %>%
-  mapview(zcol = 'Des_Tp')
-
-# overlaps remain. but arbitrarily taking just one would seem fine.
-tmp <- unioned.fees %>%
-  ungroup() %>%
-  st_difference()
-pfe
-
-
-#'  t_difference documentation:
-#'
-#'  When st_difference is called with a single argument, overlapping areas are
-#'  erased from geometries that are indexed at greater numbers in the argument
-#'  to x; geometries that are empty or contained fully inside geometries with
-#'  higher priority are removed entirely. The st_difference.sfc method with a
-#'  single argument returns an object with an "idx" attribute with the orginal
-#'  index for returned geometries.
+```
