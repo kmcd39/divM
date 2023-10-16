@@ -23,16 +23,14 @@ rm(list = ls())
 
 devtools::load_all()
 
-# ri.test <- Wrapper_pad.area.by.nbhd(
-#     statefp = 44,
-#     pad.dir = '~/R/local-data/usgs/PADUS3_0Geodatabase/',
-#     category.colms = c( 'des_tp' ),
-#     geo.query = tigris::tracts,
-#     geo.yr = 2021,
-#     simplify.geos = F
-# )
+ri.test <-
+  local.Wrapper_pad.area.by.nbhd(
+    statefips = 44,
+    nbhds.fcn = tigris::tracts
+    #,simplify.geos = T
+  )
 
-
+ri.test
 
 # just run locally --------------------------------------------------------
 
