@@ -16,12 +16,13 @@
 #' @param simplify.geos T/F whether to run st_simplify on PAD data before
 #'   measure generation.
 #'
-Wrapper_pad.area.by.nbhd_archived <- function(
+Wrapper_pad.area.by.nbhd <- function(
     statefips,
     pad.dir = '/scratch/gpfs/km31/protected-areas/usgs-data/PADUS3_0Geodatabase/',
-    tigris.dir = '/scratch/gpfs/km31/census-geos/bgs/',
+    nbhd.dir = '/scratch/gpfs/km31/census-geos/bgs/',
     remove.water = T,
     water.size.floor = 1e5,
+    wtr.dir = '/scratch/gpfs/km31/census-geos/water/',
     geo.precision = units::set_units(1, 'meters'),
     simplify.geos = F) {
 
@@ -31,10 +32,10 @@ Wrapper_pad.area.by.nbhd_archived <- function(
 
   # get nbhds for given state
   cat('querying for tracts or block groups \n')
-  pth <- list.files(tigris.dir, pattern = 'shp$')
-  cat('using file ', pth)
+  fn <- list.files(nbhd.dir, pattern = 'shp$')
+  cat('using file ', nbhd.dir, fn)
 
-  nbhds <- st_read( paste0(tigris.dir, pth)) %>%
+  nbhds <- st_read( paste0(nbhd.dir, fn)) %>%
     rename_with(tolower) %>%
     filter(statefp == statefips) %>%
     st_transform(5070) %>%
@@ -47,18 +48,15 @@ Wrapper_pad.area.by.nbhd_archived <- function(
   # trim water if desired (UGH this won't work on della w/o more setup)
   if(remove.water) {
     # retrieve water
-    wtr <-
-      map_dfr(
-        unique(nbhds$countyfp),
-        ~tigris::area_water(state = statefips
-                            ,county = .x
-                            ,year = 2021) %>%
-          rename_with(tolower)
-      )
+    wtr <- st_read(
+      paste0(
+        '/scratch/gpfs/km31/census-geos/water/state-',
+        statefips, '/water.shp'))
+
     wtr <- wtr %>%
       geox::trim.tigris.waters(
-        size.floor = water.size.floor
-      )
+        size.floor = water.size.floor )
+
     wtr <- wtr %>%
       st_transform(5070)
 
@@ -94,7 +92,6 @@ Wrapper_pad.area.by.nbhd_archived <- function(
     map( ~rename_with(., tolower) ) %>%
     map( ~rename(., geometry = shape) )
 
-
   ## trim colms and rbind
   keep.cols <- Hmisc::Cs(featclass, mang_type,
                          loc_mang, loc_ds,
@@ -125,14 +122,10 @@ Wrapper_pad.area.by.nbhd_archived <- function(
     arrange(desc(featclass)) %>%
     st_difference()
 
-
-  # union by relevant columns
+  # union by relevant columns & add index/id
   pfed <- pfed %>%
     group_by(mang_type, des_tp) %>%
-    summarise(., do_union = T)
-
-  # add index/id
-  pfed <- pfed %>%
+    summarise(., do_union = T) %>%
     ungroup() %>%
     mutate(id = 1:nrow(.)
            ,.before = everything())
@@ -162,9 +155,8 @@ Wrapper_pad.area.by.nbhd_archived <- function(
               ,by = 'id') %>%
     select(-id)
 
-
   # return set of combined measures
-  return(combined)
+  return(perc.by.tract)
 }
 
 
