@@ -27,76 +27,53 @@ ri.test <-
   local.Wrapper_pad.area.by.nbhd(
     statefips = 44,
     nbhds.fcn = tigris::tracts
-    #,simplify.geos = T
+    ,simplify.geos = T
   )
 
 ri.test
 
-# just run locally --------------------------------------------------------
 
-# i am having Della issues...so just run locally
+# gen locally for initial states --------------------------------------------------------------
 
-#' note arguments passed onto divM::wrapper --- I AM SIMPLIFYING POLYGONS for
-#' now
-pad.by.tract.della.wrapper <- function(
-    statefp,
-    save.dir =
-      # '/scratch/gpfs/km31/protected-areas/generated-measures/'  # for della
-      '~/R/local-data/usgs/generated-PAD-measurues/'
-    )
-{
+#' from patrick: "To start up any of NJ, CT, or MA would be interesting, tho
+#' ultimately I'd like to do this nationally."
+statesf <- tigris::states()
+to.gen <- statesf %>% tibble() %>% select(STATEFP, NAME, STUSPS) %>%
+  filter(grepl('NJ|CT|MA|RI', STUSPS)) %>%
+  .$STATEFP
 
-  require(tidyverse)
-  require(sf)
-
-  # just using equal-area projection that USGS is in
-  #sf_use_s2(F)
-
-  pad.measures <-
-    Wrapper_pad.area.by.nbhd(
-      statefp,
-      pad.dir =
-        # '/scratch/gpfs/km31/protected-areas/usgs-data/PADUS3_0Geodatabase/'
-          '~/R/local-data/usgs/PADUS3_0Geodatabase/'
-      ,category.colms = c( 'featclass'
-                          ,'own_type', 'own_name'
-                          ,'mang_type', 'mang_name'
-                          ,'des_tp'
-                          ,'gap_sts'),
-      geo.query = tigris::tracts,
-      geo.yr = 2021,
-      simplify.geos = T)
-
-  # write
-  save.path <- paste0(save.dir, 'statefp-', statefp, '.csv')
-  write.csv(
-    pad.measures
-    ,file = save.path
-    ,row.names = F
-  )
-
-  return(pad.measures)
-
-}
-
-
-# gen for NE --------------------------------------------------------------
+to.gen
 
 devtools::load_all()
-# wrapped function:
-divM::Wrapper_pad.area.by.nbhd
 
-# "send" job
-pad.measures <- map(
-  c('09', '25', '44') ,
-  Wrapper_pad.area.by.nbhd
-)
+# local.Wrapper_pad.area.by.nbhd(
+#   # statefips = '25' # MA
+#   statefips = '09' # CT
+#   ,simplify.geos = T
+# )
 
+for(fips in to.gen) {
+  cat(fips, '\n')
+  # generate for initial states
+  local.Wrapper_pad.area.by.nbhd(
+      statefips = fips
+     ,simplify.geos = T
+  )
+}
+
+#' for CT(09), got an error at the collection extract... then at the
+#' st_difference? Error in (function (msg) : TopologyException: side location
+#' conflict at 1866690 2348091. This can occur if the input geometry is invalid.
+#'
+#' Trying again with geo.simplification
 
 # gen for a next batch of states ------------------------------------------
 
+measure.dir <- '~/R/divM/genereated-measures/fall-2023-conservation-areas/'
+
+
 already.generated <-
-  '~/R/local-data/usgs/generated-PAD-measurues/' %>%
+  measure.dir %>%
   list.files(pattern = '\\d{2}.csv$') %>%
   str_extract('\\d{2}')
 
@@ -104,10 +81,10 @@ already.generated <-
 statefps <- geox::rx$statefp %>% unique()
 togen <- setdiff(statefps, already.generated)
 
-# send a batch
+# "send" a batch
 togen[1:5] %>%
   map(
-    pad.by.tract.della.wrapper
+    local.Wrapper_pad.area.by.nbhd
   )
 
 # checking what states are there ------------------------------------------

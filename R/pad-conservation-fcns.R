@@ -1,6 +1,257 @@
+#' geo.clean
+#'
+#' After repeated spatial manipulation, geometries can be corrupted. This wraps
+#' steps i'm using to re-validate geometries as I go
+#'
+geo.clean <- function(sfx,
+                      precision = units::set_units(1, 'm'),
+                      geo.types = 'POLYGON') {
+
+  sfx
+
+}
 
 
-#' Wrapper_pad.area.by.nbhd
+#' local.Wrapper_pad.area.by.nbhd
+#'
+#' Wraps all steps to generate measures for protected areas by type (and
+#' overall) for a given state, by tract or block group. Local version queries
+#' from tigris.
+#'
+#' @param statefips FIPS code for state to generate
+#' @param pad.dir Directory of USGS PAD geodatabase. Default parameter for KM
+#'   della
+#' @param tigris.dir Directory with tigris geometries, if on Della w/o internet
+#'   access (so can't just pull directly.) Should have either tracts or
+#'   blockgroups for this function. Default parameter for block groups on KM
+#'   della
+#' @param remove.water Whether to remove water from tracts
+#' @param water.size.floor Minimum square meters to use as a catch-all filter to
+#'   keep water areas (can be 0)
+#' @param simplify.geos T/F whether to run st_simplify on PAD data before
+#'   measure generation.
+#'
+local.Wrapper_pad.area.by.nbhd <- function(
+    statefips,
+    pad.dir = '~/R/local-data/usgs/PADUS3_0Geodatabase/',
+    nbhds.fcn = tigris::block_groups,
+    remove.water = T,
+    water.size.floor = 1e5,
+    geo.precision =
+      units::set_units(1, 'meters'),
+    simplify.geos = F,
+    sv.dir = '~/R/divM/genereated-measures/fall-2023-conservation-areas/') {
+
+  require(tidyverse)
+  require(sf)
+  cat(paste0('generating for state ', statefips, '\n'))
+
+  # get nbhds for given state
+  cat('querying for tracts or block groups \n')
+
+  nbhds <- nbhds.fcn( state = statefips
+                     ,year = 2021 ) %>%
+    rename_with(tolower) %>%
+    st_transform(5070) %>%
+    select( statefp, countyfp, geoid,
+            aland, awater, geometry )
+
+  # remove only-water CTs
+  nbhds <- nbhds %>%
+    filter(aland > 0 )
+
+  # trim water if desired
+  if(remove.water) {
+    cat('removing water \n')
+
+    # retrieve water
+    cofps <- nbhds$countyfp %>% unique()
+    wtr <-
+      map_dfr(cofps,
+              ~tigris::area_water( state = statefips
+                                  ,county = .x
+                                  ,year = 2021)
+              ) %>%
+      rename_with(tolower)
+
+    wtr <- wtr %>%
+      geox::trim.tigris.waters(
+        size.floor = water.size.floor )
+
+    wtr <- wtr %>%
+      st_transform(5070)
+
+    nbhds <- nbhds %>%
+      st_difference( st_union( wtr ) )
+  }
+
+  # set precision and validate nbhds
+  nbhds <- nbhds %>%
+    st_set_precision(
+      geo.precision) %>%
+    st_make_valid()
+
+  # get bbox and wkt filter for area
+  wktf <- nbhds %>% st_bbox() %>% st_as_sfc() %>% st_as_text()
+
+  # load raw USGS PAD data.
+  cat('loading USGS PAD data \n')
+  gdb <- pad.dir %>% list.files(pattern = 'gdb$', full.names = T)
+  lyrs <- gdb %>% st_layers()
+
+  # read Pad fees & easements
+  pfe <-
+    map(lyrs$name[c( 11, 13 )]
+        , ~st_read(
+          gdb
+          , layer = .x
+          , wkt_filter = wktf # over sample area
+        )
+    ) %>%
+    set_names( lyrs$name[c( 11, 13 )] )
+  # may be a warning/GDAL error reading..
+
+  pfe <- pfe %>%
+    map( tibble ) %>%
+    map( ~rename_with(., tolower) ) %>%
+    map( ~rename(., geometry = shape) )
+
+  ## trim colms and rbind
+  keep.cols <- Hmisc::Cs(featclass, mang_type,
+                         loc_mang, loc_ds,
+                         unit_nm,
+                         src_date, date_est,
+                         gis_acres,
+                         pub_access, gap_sts,
+                         des_tp, geometry )
+
+  pfe <- pfe %>%
+    map_dfr( ~select(  tibble(.x)
+                       , all_of(keep.cols)) )
+
+  ## spatial cleans
+  cat('spatial cleaning PAD data... \n')
+
+  pfe <- pfe %>%
+    st_sf() %>%
+    st_transform(5070) %>%
+    st_cast('MULTIPOLYGON') %>%
+    st_set_precision(
+      geo.precision ) %>%
+    st_make_valid()
+
+  if(simplify.geos)
+    pfe <- pfe %>% st_simplify()
+
+  # browser()
+
+  # # (check slivers)
+  # pfe %>% arrange(calcd.area) %>% head(100)
+  # pfe$calcd.area %>% quantile(seq(0,1,.05))
+
+  # handle slivers
+  pfe <- pfe %>%
+    st_collection_extract('POLYGON') %>%
+    mutate(calcd.area = st_area(geometry))  %>%
+    filter(calcd.area >
+             units::set_units(100, 'm^2') # seems a reasonable threshold
+           ) %>%
+    st_set_precision(
+      geo.precision ) %>%
+    st_make_valid()
+
+  ## union by relevant columns -- simplifying geometries by union'ing is
+  ## necessary to not mess them up (get invalid geos) during the differenc'ing,
+  ## it seems
+  pfed <- pfe %>%
+    group_by(featclass, mang_type, des_tp) %>%
+    summarise(., do_union = T) %>%
+    ungroup() %>%
+    st_collection_extract('POLYGON') %>%
+    st_set_precision(
+      geo.precision ) %>%
+    st_make_valid()
+
+  ## remove overlaps (this takes a while -- computationally intensive)
+  pfed <- pfed %>%
+    arrange(desc(featclass)) %>%
+    st_difference()
+
+  # # backup for developing
+  # pfed_backup <- pfed
+
+  ## again union, dropping FeatureClass now, which won't be accurate because
+  ## sometimes they will have been overlapping. Then validate and remove
+  ## post-difference slivers & another cleaning repetition.. (not sure necessary
+  ## rn buut always nice to not have invalid geometry errors.)
+  pfed <- pfed %>%
+    st_collection_extract('POLYGON') %>%
+    st_set_precision(
+      geo.precision ) %>%
+    st_make_valid()
+
+  pfed <- pfed %>%
+    group_by(mang_type, des_tp) %>%
+    summarise(., do_union = T) %>%
+    ungroup() %>%
+    st_set_precision(
+      geo.precision ) %>%
+    st_make_valid() %>%
+    mutate(id = 1:nrow(.)
+           ,.before = everything())
+
+
+  # tibble(pfed) %>% count(geo.type = st_geometry_type(geometry))
+
+  # get overlap by nbhd, long by manager and designation type
+  cat('generating measures \n')
+  perc.by.nbhd <-
+    geox::get.spatial.overlap(
+      nbhds,
+      pfed,
+      'geoid',
+      'id',
+      filter.threshold = 0.005 # half a percent overlap.
+    )
+
+  # add full list of tracts
+  perc.by.nbhd <- perc.by.nbhd %>%
+    full_join(tibble(nbhds)[c('geoid', 'aland')])
+
+  # make 0s explicit (replace NAs where there was no conserved area in
+  # tract/nbhd), and add nbhd acreage
+  perc.by.nbhd <- perc.by.nbhd %>%
+    mutate(perc.area =
+             if_else( is.na(perc.area),
+                      0, perc.area)
+           ,nbhd.land.acres =
+             as.numeric(
+               units::set_units(
+                 units::set_units(aland, 'm^2')
+                 ,'acres')
+               )
+           )
+
+  # add des/mgnr type back and rearrange
+  perc.by.nbhd <- perc.by.nbhd %>%
+    left_join(tibble(pfed)[c('id', 'mang_type', 'des_tp' )]
+              ,by = 'id') %>%
+    select(-id) %>%
+    select(geoid, mang_type, des_tp, nbhd.land.acres, perc.area) %>%
+    mutate(conserved.acreage = nbhd.land.acres * perc.area)
+
+  # save & return set of combined measures
+  if( !is.null(sv.dir) )
+    write.csv(perc.by.nbhd
+              ,file = paste0(sv.dir, 'state-',statefips,'.csv')
+              ,row.names = F)
+
+  cat('finished \n')
+  return(perc.by.nbhd)
+}
+
+
+#' della.Wrapper_pad.area.by.nbhd
 #'
 #' Wraps all steps to generate measures for protected areas by type (and
 #' overall) for a given state, by tract or block group.
@@ -16,7 +267,7 @@
 #' @param simplify.geos T/F whether to run st_simplify on PAD data before
 #'   measure generation.
 #'
-Wrapper_pad.area.by.nbhd <- function(
+della.Wrapper_pad.area.by.nbhd <- function(
     statefips,
     pad.dir = '/scratch/gpfs/km31/protected-areas/usgs-data/PADUS3_0Geodatabase/',
     nbhd.dir = '/scratch/gpfs/km31/census-geos/bgs/',
