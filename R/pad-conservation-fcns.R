@@ -1,15 +1,128 @@
-#' geo.clean
-#'
-#' After repeated spatial manipulation, geometries can be corrupted. This wraps
-#' steps i'm using to re-validate geometries as I go
-#'
-geo.clean <- function(sfx,
-                      precision = units::set_units(1, 'm'),
-                      geo.types = 'POLYGON') {
 
-  sfx
+
+
+#' remove.water.from.nbhds
+#'
+#' Removes water from census tracts or block groups.
+#'
+#'
+#' @param nbhds an `sf` objects representing tracts or blockgroups, with
+#'   `countyfp` and `statefp` columns
+#' @param year year for which to get water areas
+#' @param water.size.floor passed onto `geox::trim.tigris.waters`
+#'
+remove.water.from.nbhds <- function(nbhds,
+                                    year = NULL,
+                                    water.size.floor = 1e5) {
+
+  # retrieve water
+  state.cofps <- tibble(nbhds) %>%
+    select(statefp, countyfp) %>%
+    distinct()
+
+  wtr <-
+    map2_dfr(state.cofps$statefp,
+             state.cofps$countyfp,
+            ~tigris::area_water( state = .x
+                                 ,county = .y
+                                 , year = year)
+    ) %>%
+    rename_with(tolower)
+
+  wtr <- wtr %>%
+    geox::trim.tigris.waters(
+      size.floor = water.size.floor )
+
+  # re-project & remove water
+  wtr <- wtr %>%
+    st_transform( st_crs(nbhds) )
+
+  nbhds <- nbhds %>%
+    st_difference( st_union(wtr) )
+
+  return(nbhds)
+}
+
+
+
+#' read.PAD.over.area
+#'
+#' Reads PAD data over a given area or statefips
+#'
+#' @param sfx `sf` object over which to read PAD data. Leave NULL to read over a
+#'   state.
+#' @param statefips State over which to read data; only used if `sfx` is not
+#'   supplied.
+#' @param pad.dir directory containing PAD data
+#' @param pad.layers Layers of PAD data to load; defaults to Fees and Easements.
+#'
+read.PAD.over.area <- function(
+  sfx = NULL,
+  statefips = NULL,
+  pad.dir = '~/R/local-data/usgs/PADUS3_0Geodatabase/',
+  pad.layers = c(11, 13)) {
+
+  if( is.null(sfx) )
+    sfx <- tigris::states() %>%
+      rename_with(tolower) %>%
+      filter(statefp  == statefips)
+
+  # get bbox and wkt filter for area
+  wktf <- sfx %>% st_transform(5070) %>%
+    st_bbox() %>% st_as_sfc() %>% st_as_text()
+
+  # find geodatabase/load list of layers
+  gdb <- pad.dir %>% list.files(pattern = 'gdb$', full.names = T)
+  lyrs <- gdb %>% st_layers()
+
+  # read Pad fees & easements
+  pad <-
+    map(lyrs$name[c( 11, 13 )]
+        , ~st_read(
+          gdb
+          , layer = .x
+          , wkt_filter = wktf # over sample area
+        )
+    ) %>%
+    set_names( lyrs$name[c( 11, 13 )] )
+  # may be a warning/GDAL error reading..
+
+  pad <- pad %>%
+    map( tibble ) %>%
+    map( ~rename_with(., tolower) ) %>%
+    map( ~rename(., geometry = shape) )
+
+  ## trim colms and rbind
+  keep.cols <- Hmisc::Cs(featclass, mang_type,
+                         loc_mang, loc_ds,
+                         unit_nm,
+                         src_date, date_est,
+                         gis_acres,
+                         pub_access, gap_sts,
+                         des_tp, geometry )
+
+  pad <- pad %>%
+    map_dfr( ~select(  tibble(.x)
+                       , all_of(keep.cols)) )
+
+  pad <- pad %>%
+    st_sf() %>%
+    st_transform(5070) %>%
+    st_cast('MULTIPOLYGON')
+
+  # spatial filter to area as well -- the wktf filter when first reading in can
+  # be very rough it seems
+  pad <- pad %>%
+    st_filter(sfx)
+
+  return(pad)
 
 }
+
+
+
+# wrapper fcns ----------------------------------------------------------------
+
 
 
 #' local.Wrapper_pad.area.by.nbhd
@@ -54,35 +167,15 @@ local.Wrapper_pad.area.by.nbhd <- function(
     rename_with(tolower) %>%
     st_transform(5070) %>%
     select( statefp, countyfp, geoid,
-            aland, awater, geometry )
-
-  # remove only-water CTs
-  nbhds <- nbhds %>%
-    filter(aland > 0 )
+            aland, awater, geometry ) %>%
+    filter( aland > 0 )
 
   # trim water if desired
   if(remove.water) {
     cat('removing water \n')
-
-    # retrieve water
-    cofps <- nbhds$countyfp %>% unique()
-    wtr <-
-      map_dfr(cofps,
-              ~tigris::area_water( state = statefips
-                                  ,county = .x
-                                  ,year = 2021)
-              ) %>%
-      rename_with(tolower)
-
-    wtr <- wtr %>%
-      geox::trim.tigris.waters(
-        size.floor = water.size.floor )
-
-    wtr <- wtr %>%
-      st_transform(5070)
-
-    nbhds <- nbhds %>%
-      st_difference( st_union( wtr ) )
+    nbhds <- remove.water.from.nbhds(nbhds
+                                     ,year = 2021
+                                     ,water.size.floor = 1e5)
   }
 
   # set precision and validate nbhds
@@ -91,51 +184,20 @@ local.Wrapper_pad.area.by.nbhd <- function(
       geo.precision) %>%
     st_make_valid()
 
-  # get bbox and wkt filter for area
-  wktf <- nbhds %>% st_bbox() %>% st_as_sfc() %>% st_as_text()
-
-  # load raw USGS PAD data.
   cat('loading USGS PAD data \n')
-  gdb <- pad.dir %>% list.files(pattern = 'gdb$', full.names = T)
-  lyrs <- gdb %>% st_layers()
 
-  # read Pad fees & easements
-  pfe <-
-    map(lyrs$name[c( 11, 13 )]
-        , ~st_read(
-          gdb
-          , layer = .x
-          , wkt_filter = wktf # over sample area
-        )
-    ) %>%
-    set_names( lyrs$name[c( 11, 13 )] )
-  # may be a warning/GDAL error reading..
-
-  pfe <- pfe %>%
-    map( tibble ) %>%
-    map( ~rename_with(., tolower) ) %>%
-    map( ~rename(., geometry = shape) )
-
-  ## trim colms and rbind
-  keep.cols <- Hmisc::Cs(featclass, mang_type,
-                         loc_mang, loc_ds,
-                         unit_nm,
-                         src_date, date_est,
-                         gis_acres,
-                         pub_access, gap_sts,
-                         des_tp, geometry )
-
-  pfe <- pfe %>%
-    map_dfr( ~select(  tibble(.x)
-                       , all_of(keep.cols)) )
+  pfe <- read.PAD.over.area(
+    sfx = nbhds,
+    pad.dir = '~/R/local-data/usgs/PADUS3_0Geodatabase/',
+    pad.layers = c(11, 13)
+  )
 
   ## spatial cleans
   cat('spatial cleaning PAD data... \n')
 
+  browser()
+
   pfe <- pfe %>%
-    st_sf() %>%
-    st_transform(5070) %>%
-    st_cast('MULTIPOLYGON') %>%
     st_set_precision(
       geo.precision ) %>%
     st_make_valid()
@@ -143,31 +205,29 @@ local.Wrapper_pad.area.by.nbhd <- function(
   if(simplify.geos)
     pfe <- pfe %>% st_simplify()
 
-  # browser()
-
-  # # (check slivers)
-  # pfe %>% arrange(calcd.area) %>% head(100)
-  # pfe$calcd.area %>% quantile(seq(0,1,.05))
-
-  # handle slivers
-  pfe <- pfe %>%
-    st_collection_extract('POLYGON') %>%
-    mutate(calcd.area = st_area(geometry))  %>%
-    filter(calcd.area >
-             units::set_units(100, 'm^2') # seems a reasonable threshold
-           ) %>%
-    st_set_precision(
-      geo.precision ) %>%
-    st_make_valid()
-
   ## union by relevant columns -- simplifying geometries by union'ing is
   ## necessary to not mess them up (get invalid geos) during the differenc'ing,
   ## it seems
   pfed <- pfe %>%
     group_by(featclass, mang_type, des_tp) %>%
     summarise(., do_union = T) %>%
-    ungroup() %>%
+    ungroup()
+
+  # pfed %>% st_collection_extract('POLYGON') %>% tibble() %>% count(geotype = st_geometry_type(geometry))
+
+  # handle slivers & re-validate
+  pfed <- pfed %>%
     st_collection_extract('POLYGON') %>%
+    mutate(calcd.area = st_area(geometry))
+
+  # # (check slivers)
+  # pfed %>% arrange(calcd.area) %>% head(100)
+  # pfed$calcd.area %>% quantile(seq(0,1,.05))
+
+  pfed <- pfed %>%
+    filter(calcd.area >
+             units::set_units(100, 'm^2') # seems a reasonable threshold
+           )  %>%
     st_set_precision(
       geo.precision ) %>%
     st_make_valid()
@@ -180,16 +240,17 @@ local.Wrapper_pad.area.by.nbhd <- function(
   # # backup for developing
   # pfed_backup <- pfed
 
-  ## again union, dropping FeatureClass now, which won't be accurate because
-  ## sometimes they will have been overlapping. Then validate and remove
-  ## post-difference slivers & another cleaning repetition.. (not sure necessary
-  ## rn buut always nice to not have invalid geometry errors.)
+  # validate and remove post-difference slivers
   pfed <- pfed %>%
     st_collection_extract('POLYGON') %>%
     st_set_precision(
       geo.precision ) %>%
     st_make_valid()
 
+  ## again union, dropping FeatureClass now, which won't be accurate because
+  ## sometimes they will have been overlapping. Then another cleaning repetition
+  ## (not sure necessary rn buut always nice to not have invalid geometry
+  ## errors.)
   pfed <- pfed %>%
     group_by(mang_type, des_tp) %>%
     summarise(., do_union = T) %>%
@@ -413,6 +474,21 @@ della.Wrapper_pad.area.by.nbhd <- function(
 
 
 # archived ----------------------------------------------------------------
+
+
+#' geo.clean
+#'
+#' After repeated spatial manipulation, geometries can be corrupted. This wraps
+#' steps i'm using to re-validate geometries as I go
+#'
+geo.clean <- function(sfx,
+                      precision = units::set_units(1, 'm'),
+                      geo.types = 'POLYGON') {
+
+  sfx
+
+}
+
 
 # out of use, for first pass:
 
